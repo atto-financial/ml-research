@@ -1,11 +1,14 @@
-DB_URI = 'mysql+mysqlconnector://root:TjndDsrCcjBuxfgQlvhzNnoVCXOapmUG@switchyard.proxy.rlwy.net:16533/railway'
+import os
+from dotenv import load_dotenv
 
-MODEL_PATH = 'app/models/mlrf_model_X.pkl'
+load_dotenv()
+
+MODEL_PATH = os.getenv("MODEL_PATH")
 
 DB_CONFIG = {
-    'host': 'switchyard.proxy.rlwy.net',
-    'user': 'root',
-    'password': 'TjndDsrCcjBuxfgQlvhzNnoVCXOapmUG',
-    'database': 'railway',
-    'port': 16533
+    "host": os.getenv("DB_HOST"),
+    "user": os.getenv("DB_USER"),
+    "password": os.getenv("DB_PASS"),
+    "database": os.getenv("DB_NAME"),
+    "port": int(os.getenv("DB_PORT")),
 }

@@ -2,3 +2,4 @@ venv
 legacy/mlrf_model_X.pkl
 **/__pycache__/
 app/models/mlrf_model_X.pkl
+.env
