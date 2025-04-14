@@ -1,12 +1,21 @@
 # Core libraries
-pandas==1.5.3
-numpy==1.24.3
+pandas==1.5.3          # Data manipulation
+numpy==1.24.3          # Numerical operations
 
 # Machine learning
-scikit-learn==1.6.1
-joblib==1.3.2
+scikit-learn==1.2.2    # Latest stable version of scikit-learn
+joblib==1.3.2          # Model serialization
 
 # Database connectors
-SQLAlchemy==2.0.15
-mysql-connector-python==8.0.33
-pymysql==1.0.3
+SQLAlchemy==2.0.15     # Database ORM and connectivity
+mysql-connector-python==8.0.33  # MySQL database connector
+pymysql==1.0.3         # Alternative MySQL driver
+
+# Web framework (Flask)
+Flask==2.2.3           # Flask web framework
+Flask-RESTful==0.3.9   # To build RESTful APIs with Flask
+Werkzeug==2.2.3
+
+# Utilities
+Flask-Cors==5.0.1      # For Cross-Origin Resource Sharing (CORS) support
+Flask-SQLAlchemy==2.5.1 # For handling SQLAlchemy within Flask more easily
