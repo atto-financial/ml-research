@@ -1,0 +1,12 @@
+# Core libraries
+pandas==1.5.3
+numpy==1.24.3
+
+# Machine learning
+scikit-learn==1.6.1
+joblib==1.3.2
+
+# Database connectors
+SQLAlchemy==2.0.15
+mysql-connector-python==8.0.33
+pymysql==1.0.3
