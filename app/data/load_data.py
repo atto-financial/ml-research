@@ -6,9 +6,9 @@ def load_data():
         SELECT cdd_1 AS cdd1, cdd_2 AS cdd2, cdd_3 AS cdd3, cdd_4 AS cdd4, 
                cdd_5 AS cdd5, cdd_6 AS cdd6, cdd_7 AS cdd7, cdd_8 AS cdd8, 
                cdd_9 AS cdd9, cdd_10 AS cdd10, cdd_11 AS cdd11, 
-               init_credit_score AS ins, user_status AS ust 
+               init_payoff_score AS ins, user_status AS ust 
         FROM users 
-        WHERE user_status = 1 OR (user_status = 0 AND credit_score > 4)
+        WHERE user_status = 1 OR (user_status = 0 AND payoff_score > 4)
     """
 
     conn = get_db_connection()
