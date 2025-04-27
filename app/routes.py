@@ -2,8 +2,10 @@ from flask import render_template, request, jsonify
 from app.models.train_model import train_model
 from app.models.evaluate_model import evaluate_model
 from app.models.save_model import save_model
+import numpy as np
 import pandas as pd
 from app.config.settings import MODEL_PATH
+
 
 def configure_routes(app):
 
@@ -44,21 +46,23 @@ def configure_routes(app):
                 "msg": "coming soon"
             }), 200    
               
+              
     @app.route('/train', methods=['POST'])
     def train():
         from app.data.load_data import load_data
         raw_dat = load_data()
         
-        from app.data.preprocess import preprocess_data
-        X_train, X_test, y_train, y_test, X, y = preprocess_data(raw_dat)
-
+        from app.models.train_model import data_split
+        X_train, X_test, y_train, y_test, X, y = data_split(raw_dat)
+        
+        from app.models.train_model import train_model
         model = train_model(X_train, y_train)
-
-        results = evaluate_model(model, X_test, y_test)
-        print("Evaluation results:", results)
-
-        save_model(model, "app/models/model_x.pkl")
+        
+        from app.models.evaluate_model import cross_validation
+        results = cross_validation(model, X_train, X_test, y_train, y_test, X, y)
         return jsonify(results), 200
+        
+        #save_model(model, "app/models/model_x.pkl")
 
     @app.route('/predict', methods=['POST'])
     def predict():
@@ -73,9 +77,9 @@ def configure_routes(app):
         predictions, probabilities, predictions_adjusted = make_predictions(model, new_data)
 
         results = {
-            'model_prediction': int(predictions[0]),
             'default_probability': float(f"{probabilities[0]:.3f}"),
+            'model_prediction': int(predictions[0]),
             'adjust_prediction': int(predictions_adjusted)
         }
-
         return jsonify(results), 200
+    
