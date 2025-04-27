@@ -1,7 +1,4 @@
 from flask import render_template, request, jsonify
-from app.models.train_model import train_model
-from app.models.evaluate_model import evaluate_model
-from app.models.save_model import save_model
 import numpy as np
 import pandas as pd
 from app.config.settings import MODEL_PATH
@@ -62,6 +59,7 @@ def configure_routes(app):
         results = cross_validation(model, X_train, X_test, y_train, y_test, X, y)
         return jsonify(results), 200
         
+        #from app.models.save_model import save_model
         #save_model(model, "app/models/model_x.pkl")
 
     @app.route('/predict', methods=['POST'])

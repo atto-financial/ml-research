@@ -2,6 +2,9 @@ import pandas as pd
 import numpy as np
 
 def preprocess_data(raw_dat):
+    df = pd.DataFrame({
+    'Q1': Q1, 'Q2': Q2, 'Q3': Q3, 'Q4': Q4, 'Q5': Q5, 'Q6': Q6, 'Q7': Q7, 'Q8': Q8
+})
     
 Q1 # Spending: จัดลำดับความสำคัญ
 Q2 # Spending: ติดตามค่าใช้จ่าย
@@ -12,9 +15,6 @@ Q6 # Borrowing: ชำระหนี้เก่า
 Q7 # Planning: วางแผนการใช้เงิน
 Q8 # Planning: หารายได้เสริม
 
-df = pd.DataFrame({
-    'Q1': Q1, 'Q2': Q2, 'Q3': Q3, 'Q4': Q4, 'Q5': Q5, 'Q6': Q6, 'Q7': Q7, 'Q8': Q8
-})
 
 df['Spending_Score'] = (df['Q1'] + df['Q2']) / 2  # คะแนนการใช้จ่าย
 df['Saving_Score'] = (df['Q3'] + df['Q4']) / 2    # คะแนนการออม

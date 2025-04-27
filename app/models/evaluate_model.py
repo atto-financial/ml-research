@@ -23,6 +23,7 @@ def cross_validation(model, X_train, X_test, y_train, y_test, X, y, scoring='roc
             
             f"cross_validated_{scoring.upper()}_mean": cv_scores.mean(),
             f"cross_validated_{scoring.upper()}_all_folds": cv_scores.tolist(),
+            
             "cross_validated_accuracy": accuracy_score(y, y_pred_cv),
             "cross_validated_precision": precision_score(y, y_pred_cv, zero_division=1),
             "cross_validated_recall": recall_score(y, y_pred_cv, zero_division=1),
