@@ -1,6 +1,16 @@
 from flask import render_template, request, jsonify
-import numpy as np
 import pandas as pd
+
+# train import
+from app.data.load_data import load_data
+from app.models.train_model import data_split
+from app.models.train_model import train_model
+from app.models.evaluate_model import test_set
+from app.models.evaluate_model import cross_validation
+from app.models.evaluate_model import features_importance
+from app.models.save_model import save_model
+
+
 from app.config.settings import MODEL_PATH
 
 
@@ -46,21 +56,28 @@ def configure_routes(app):
               
     @app.route('/train', methods=['POST'])
     def train():
-        from app.data.load_data import load_data
+    
         raw_dat = load_data()
         
-        from app.models.train_model import data_split
         X_train, X_test, y_train, y_test, X, y = data_split(raw_dat)
         
-        from app.models.train_model import train_model
         model = train_model(X_train, y_train)
         
-        from app.models.evaluate_model import cross_validation
-        results = cross_validation(model, X_train, X_test, y_train, y_test, X, y)
-        return jsonify(results), 200
+        test_results = test_set(model, X_test, y_test)
         
-        #from app.models.save_model import save_model
-        #save_model(model, "app/models/model_x.pkl")
+        CV_results = cross_validation(model, X_train, X_test, y_train, y_test, X, y)
+
+        feature_results = features_importance(model, X, y)
+        feature_results = feature_results.to_dict(orient='records') if feature_results is not None else []
+        
+        save_model(model, "app/models/mlrfth50_v1.2.pkl")
+        
+        combined_results = {
+            'test_set': test_results,
+            'cross_validation': CV_results,
+            'feature_importance': feature_results
+        }
+        return jsonify(combined_results), 200
 
     @app.route('/predict', methods=['POST'])
     def predict():
