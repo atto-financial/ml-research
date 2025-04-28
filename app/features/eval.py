@@ -1,13 +1,10 @@
 def processAnswersFeatureV1(answers):
     # cdd
-    return 0;
+    return 0
 
 def processAnswersFeatureV2(answers):
     fht = answers.get('fht')
     kmsi = answers.get('kmsi')
-    
-    print("fht", fht)
-    print("kmsi", kmsi)
 
     fhtScore = []
     for i in range(len(fht)):
@@ -32,9 +29,6 @@ def processAnswersFeatureV2(answers):
                 kmsiScore.append(3)
             elif value == 2:
                 kmsiScore.append(1)
-
-    print("fhtScore", fhtScore)
-    print("kmsiScore", kmsiScore)
     
     sumFht = sum(fhtScore)
     sumKmsi = sum(kmsiScore)
@@ -47,4 +41,4 @@ def processAnswersFeatureV2(answers):
     
 def processAnswersFeatureV3(answers):
     # comming soon
-    return 0;
+    return 0

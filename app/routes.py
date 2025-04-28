@@ -1,7 +1,5 @@
 from flask import render_template, request, jsonify
 import pandas as pd
-
-# train import
 from app.data.load_data import load_data
 from app.models.train_model import data_split
 from app.models.train_model import train_model
@@ -10,18 +8,13 @@ from app.models.evaluate_model import cross_validation
 from app.models.evaluate_model import features_importance
 from app.models.save_model import save_model
 
-
-from app.config.settings import MODEL_PATH
-
-
 def configure_routes(app):
-
     @app.route('/')
     def home():
         return render_template('train_model.html')
 
     @app.route('/eval', methods=['POST'])
-    def userEval():
+    def eval():
         from app.features.eval import processAnswersFeatureV2
         from app.models.eval import processAnswersModelV1
         request_body = request.get_json()
@@ -52,7 +45,10 @@ def configure_routes(app):
              return jsonify({
                 "msg": "coming soon"
             }), 200    
-              
+             
+        return jsonify({
+            "msg": "No application_label specified"
+        }), 200                  
               
     @app.route('/train', methods=['POST'])
     def train():
@@ -83,10 +79,10 @@ def configure_routes(app):
     def predict():
         data = request.get_json()
 
-        new_data = pd.DataFrame([data['cdd_vals']], columns=[f'cdd{i+1}' for i in range(len(data['cdd_vals']))])
+        new_data = pd.DataFrame([data['cdd_vals']], columns=[f'cdd{i+9}' for i in range(len(data['cdd_vals']))])
 
         from app.predictions.predict import load_model
-        model = load_model("model_s")
+        model = load_model("mlrfth50_v1.2")
 
         from app.predictions.predict import make_predictions
         predictions, probabilities, predictions_adjusted = make_predictions(model, new_data)

@@ -5,9 +5,9 @@ def processAnswersModelV1(data):
     for i in range(len(data)):
         value = int(data[i])
         answers.append(value)
-    new_data = pd.DataFrame([answers], columns=[f'cdd{i+1}' for i in range(len(answers))])
+    new_data = pd.DataFrame([answers], columns=[f'cdd{i+9}' for i in range(len(answers))])
     from app.predictions.predict import load_model
-    model = load_model("mlrfth50_v1.0")
+    model = load_model("mlrfth50_v1.2")
     from app.predictions.predict import make_predictions
     predictions, probabilities, predictions_adjusted = make_predictions(model, new_data)
     results = {
