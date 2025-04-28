@@ -13,7 +13,7 @@ def configure_routes(app):
         request_body = request.get_json()
         app = request_body.get("application_label")
         
-        if app == "cdd_f1.0_score" or app == "cdd_f1.0_criteria" or app == "rdf50_m1.0_cdd_f1.0":
+        if app == "cdd_f1.0_score" or app == "cdd_f1.0_criteria" or app == "rdf50_m1.2_cdd_f1.0":
             results = processAnswersModelV1(request_body.get("answers"))
             return jsonify(results), 200
     
@@ -66,7 +66,7 @@ def configure_routes(app):
         feature_results = feature_results.to_dict(orient='records') if feature_results is not None else []
         
         #from app.models.save_model import save_model
-        #save_model(model, "app/models/mlrfth50_v1.X.pkl")
+        #save_model(model, "app/models/mlrfth50_v1.2.pkl")
         
         combined_results = {
             'test_set': test_results,
@@ -82,7 +82,7 @@ def configure_routes(app):
         new_data = pd.DataFrame([data['cdd_vals']], columns=[f'cdd{i+9}' for i in range(len(data['cdd_vals']))])
 
         from app.predictions.predict import load_model
-        model = load_model("rdf50_m1.0_cdd_f1.0")
+        model = load_model("rdf50_m1.2_cdd_f1.0")
 
         from app.predictions.predict import make_predictions
         predictions, probabilities, predictions_adjusted = make_predictions(model, new_data)
