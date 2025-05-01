@@ -7,7 +7,7 @@ def processAnswersModelV1(data):
         answers.append(value)
     new_data = pd.DataFrame([answers], columns=[f'cdd{i+9}' for i in range(len(answers))])
     from app.predictions.predict import load_model
-    model = load_model("mlrfth50_v1.2")
+    model = load_model("rdf50_m1.2_cdd_f1.0")
     from app.predictions.predict import make_predictions
     predictions, probabilities, predictions_adjusted = make_predictions(model, new_data)
     results = {

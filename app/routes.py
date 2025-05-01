@@ -7,41 +7,31 @@ def configure_routes(app):
         return render_template('train_model.html')
 
     @app.route('/eval', methods=['POST'])
-    def eval():
+    def evaluate():
         from app.features.eval import processAnswersFeatureV2
         from app.models.eval import processAnswersModelV1
+
         request_body = request.get_json()
-        app = request_body.get("application_label")
-        
-        if app == "cdd_f1.0_score" or app == "cdd_f1.0_criteria" or app == "rdf50_m1.2_cdd_f1.0":
-            results = processAnswersModelV1(request_body.get("answers"))
+        app_label = request_body.get("application_label")
+
+        if not app_label:
+            return jsonify({"msg": "application_label is required"}), 400
+
+        answers = request_body.get("answers")
+
+        if app_label in ["cdd_f1.0_score", "cdd_f1.0_criteria", "rdf50_m1.2_cdd_f1.0"]:
+            results = processAnswersModelV1(answers)
+            print(results)
             return jsonify(results), 200
-    
-        if app == "fkm_f1.0_score":
-            feature_prediction = processAnswersFeatureV2(request_body.get("answers"))
-            return jsonify({
-                "feature_prediction": feature_prediction,
-            }), 200   
-             
-        if app == "rdf50_m1.0_fkm_f1.0":
-            # รอโมเดลใหม่
-            # feature_prediction = processAnswersFeatureV2(request_body.answers)
-            # model_predictions = processAnswersModelV2(request_body.answers)
-            # use_feature = True
-            # use_model = False
-            # # application_label = "rdf50_m1.0_fkm_f1.0"
-            # application_label = "fkm_f1.0_score"
-            # return jsonify({
-            #     "application_label": application_label,
-            #     "feature_prediction": feature_prediction,
-            # }), 200
-             return jsonify({
-                "msg": "coming soon"
-            }), 200    
-             
+
+        if app_label == "rdf50_m1.2_fck_f1.0":
+            results = processAnswersFeatureV2(answers)
+            print(results)
+            return jsonify(results), 200    
+
         return jsonify({
-            "msg": "No application_label specified"
-        }), 200                  
+            "msg": f"Unsupported application_label: {app_label}"
+        }), 400   
               
     @app.route('/train', methods=['POST'])
     def train():
@@ -73,6 +63,7 @@ def configure_routes(app):
             'cross_validation': CV_results,
             'feature_importance': feature_results
         }
+        
         return jsonify(combined_results), 200
 
     @app.route('/predict', methods=['POST'])
