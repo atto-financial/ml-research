@@ -19,12 +19,12 @@ def configure_routes(app):
 
         answers = request_body.get("answers")
 
-        if app_label in ["cdd_f1.0_score", "cdd_f1.0_criteria", "rdf50_m1.2_cdd_f1.0"]:
+        if app_label in ["cdd_f1.0_score", "cdd_f1.0_criteria"]:
             results = processAnswersModelV1(answers)
             print(results)
             return jsonify(results), 200
 
-        if app_label == "rdf50_m1.2_fck_f1.0":
+        if app_label == "rdf50_m1.2_cdd_f1.0":
             results = processAnswersFeatureV2(answers)
             print(results)
             return jsonify(results), 200    
