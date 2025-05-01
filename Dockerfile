@@ -2,13 +2,18 @@ FROM python:3.11
 
 WORKDIR /usr/src/app
 
-ENV VIRTUAL_ENV=/usr/src/app/venv
-RUN python -m venv $VIRTUAL_ENV
-ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    gfortran \
+    libatlas-base-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN pip install --upgrade pip setuptools wheel
+
+RUN pip install --no-binary=:all: numpy==1.24.3
 
 COPY requirements.txt ./
-RUN pip install --upgrade pip setuptools wheel \
-    && pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
 COPY ./app ./app
 
