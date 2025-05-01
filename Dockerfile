@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM python:3.11
 
 WORKDIR /usr/src/app
 
@@ -9,12 +9,12 @@ RUN apt-get update && apt-get install -y \
     python3-dev \
     && rm -rf /var/lib/apt/lists/*
 
-RUN pip install --upgrade pip setuptools==68.0.0 wheel
-
-RUN pip install numpy==1.24.3
+RUN pip install --upgrade pip setuptools wheel
 
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
+
+RUN pip install --upgrade numpy pandas scikit-learn
 
 COPY ./app ./app
 
