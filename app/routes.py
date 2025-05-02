@@ -35,9 +35,8 @@ def configure_routes(app):
               
     @app.route('/train', methods=['POST'])
     def train():
-        
-        from app.data.load_data import load_data
-        raw_dat = load_data()
+        from app.data.load_data import load_data_cdd
+        raw_dat = load_data_cdd()
         
         from app.models.train_model import data_split
         X_train, X_test, y_train, y_test, X, y = data_split(raw_dat)

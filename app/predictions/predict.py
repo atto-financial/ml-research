@@ -1,6 +1,5 @@
 import pandas as pd
 import joblib
-from app.config.settings import MODEL_PATH
 
 def load_model(modelName):
     return joblib.load("app/models/" + modelName + ".pkl")
