@@ -1,5 +1,9 @@
 from flask import render_template, request, jsonify
 import pandas as pd
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 def configure_routes(app):
     @app.route('/')
@@ -32,10 +36,10 @@ def configure_routes(app):
         return jsonify({
             "msg": f"Unsupported application_label: {app_label}"
         }), 400   
-              
+          
     @app.route('/train', methods=['POST'])
     def train():
-        from app.data.load_data import load_data_cdd
+        from app.data.data_loading import load_data_cdd
         raw_dat = load_data_cdd()
         
         from app.models.train_model import data_split

@@ -1,31 +1,31 @@
 import pandas as pd
 from app.utils.db_connection import get_db_connection
 
-def load_data_cdd():
-    query = """
-        SELECT 
-            c.cdd_1 AS cdd1, c.cdd_2 AS cdd2, c.cdd_3 AS cdd3, c.cdd_4 AS cdd4, 
-            c.cdd_5 AS cdd5, c.cdd_6 AS cdd6, c.cdd_7 AS cdd7, c.cdd_8 AS cdd8, 
-            c.cdd_9 AS cdd9, c.cdd_10 AS cdd10, c.cdd_11 AS cdd11, 
-            u.latest_loan_payoff_score AS ins, u.user_status AS ust 
-        FROM 
-            cdd_answers AS c
-        INNER JOIN 
-            users AS u ON c.user_id = u.id
-        WHERE 
-            u.user_status = 1 
-            OR (u.user_status = 0 AND u.payoff_score > 4);
-    """
+# def load_data_cdd():
+#     query = """
+#         SELECT 
+#             c.cdd_1 AS cdd1, c.cdd_2 AS cdd2, c.cdd_3 AS cdd3, c.cdd_4 AS cdd4, 
+#             c.cdd_5 AS cdd5, c.cdd_6 AS cdd6, c.cdd_7 AS cdd7, c.cdd_8 AS cdd8, 
+#             c.cdd_9 AS cdd9, c.cdd_10 AS cdd10, c.cdd_11 AS cdd11, 
+#             u.latest_loan_payoff_score AS ins, u.user_status AS ust 
+#         FROM 
+#             cdd_answers AS c
+#         INNER JOIN 
+#             users AS u ON c.user_id = u.id
+#         WHERE 
+#             u.user_status = 1 
+#             OR (u.user_status = 0 AND u.payoff_score > 4);
+#     """
 
-    conn = get_db_connection()
-    try:
-        raw_dat = pd.read_sql(query, conn)
-    finally:
-        conn.close()
+#     conn = get_db_connection()
+#     try:
+#         raw_dat = pd.read_sql(query, conn)
+#     finally:
+#         conn.close()
 
-    return raw_dat
+#     return raw_dat
 
-def load_data_fck():
+def load_data_fsk_v1():
     query = """
         SELECT 
             f.fht_1 AS fht1, 
@@ -63,3 +63,14 @@ def load_data_fck():
         conn.close()
 
     return raw_dat
+
+
+if __name__ == "__main__":
+    print("Loading data...")
+    raw_fsk_v1 = load_data_fsk_v1()
+    if raw_fsk_v1 is not None:
+        print("\nDataFrame from load_data:")
+        print(raw_fsk_v1)
+        print("\nShape:", raw_fsk_v1.shape)
+    else:
+        print("Failed to load data.")
