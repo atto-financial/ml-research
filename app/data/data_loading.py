@@ -46,7 +46,8 @@ def load_data_fsk_v1():
             f.kmsi_6 AS kmsi6, 
             f.kmsi_7 AS kmsi7, 
             f.kmsi_8 AS kmsi8,
-            u.latest_loan_payoff_score AS ins, u.user_status AS ust 
+            u.latest_loan_payoff_score AS ins, 
+            u.user_status AS ust 
         FROM 
             fck_answers AS f
         INNER JOIN 
@@ -59,18 +60,10 @@ def load_data_fsk_v1():
     conn = get_db_connection()
     try:
         raw_dat = pd.read_sql(query, conn)
+        print(raw_dat)
+        return raw_dat
+    except Exception as e:
+        print(f"Error while executing query: {e}")
+        return []
     finally:
         conn.close()
-
-    return raw_dat
-
-
-if __name__ == "__main__":
-    print("Loading data...")
-    raw_fsk_v1 = load_data_fsk_v1()
-    if raw_fsk_v1 is not None:
-        print("\nDataFrame from load_data:")
-        print(raw_fsk_v1)
-        print("\nShape:", raw_fsk_v1.shape)
-    else:
-        print("Failed to load data.")
