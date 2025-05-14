@@ -36,8 +36,8 @@ def load_data_fsk_v1():
             f.fht_6 AS fht6, 
             f.fht_7 AS fht7, 
             f.fht_8 AS fht8, 
-            f.cdd_9 AS cdd9, 
-            f.cdd_10 AS cdd10, 
+            f.cdd_9 AS set9, 
+            f.cdd_10 AS set10, 
             f.kmsi_1 AS kmsi1, 
             f.kmsi_2 AS kmsi2, 
             f.kmsi_3 AS kmsi3, 
@@ -46,21 +46,23 @@ def load_data_fsk_v1():
             f.kmsi_6 AS kmsi6, 
             f.kmsi_7 AS kmsi7, 
             f.kmsi_8 AS kmsi8,
-            u.latest_loan_payoff_score AS ins, 
-            u.user_status AS ust 
+            u.latest_loan_payoff_score AS lps, 
+            u.user_status AS ust,
+            u.id AS user_id
         FROM 
             fck_answers AS f
         INNER JOIN 
             users AS u ON f.user_id = u.id
         WHERE 
-            u.user_status = 1 
-            OR (u.user_status = 0 AND u.payoff_score > 4);
+            (u.user_status = 1 AND u.user_verified = 3)
+            OR (u.user_status = 0 AND u.user_verified = 3 AND u.payoff_score > 4 );
     """
-
     conn = get_db_connection()
     try:
         raw_dat = pd.read_sql(query, conn)
-        print(raw_dat)
+        #print(raw_dat)
+        print("\n load data completed")
+        print("Shape:", raw_dat.shape)
         return raw_dat
     except Exception as e:
         print(f"Error while executing query: {e}")
