@@ -36,7 +36,11 @@ def compute_correlations(engineered_data: pd.DataFrame) -> Optional[pd.DataFrame
         corr_df = corr_df.sort_values(by='Pearson', ascending=False)
 
         try:
-            corr_df.to_csv('correlations_with_ust.csv')
+            corr_df.to_csv(
+                os.path.join('output_data', f"correlations_with_ust_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"),
+                index=True,
+                encoding='utf-8-sig'
+            )
             logger.info("Saved correlations to 'correlations_with_ust.csv'.")
         except Exception as e:
             logger.error(f"Failed to save correlations: {e}")
