@@ -1,31 +1,41 @@
-import pandas as pd
+from typing import Optional
 from app.utils.db_connection import get_db_connection
+import pandas as pd
+import logging
 
-# def load_data_cdd():
-#     query = """
-#         SELECT 
-#             c.cdd_1 AS cdd1, c.cdd_2 AS cdd2, c.cdd_3 AS cdd3, c.cdd_4 AS cdd4, 
-#             c.cdd_5 AS cdd5, c.cdd_6 AS cdd6, c.cdd_7 AS cdd7, c.cdd_8 AS cdd8, 
-#             c.cdd_9 AS cdd9, c.cdd_10 AS cdd10, c.cdd_11 AS cdd11, 
-#             u.latest_loan_payoff_score AS ins, u.user_status AS ust 
-#         FROM 
-#             cdd_answers AS c
-#         INNER JOIN 
-#             users AS u ON c.user_id = u.id
-#         WHERE 
-#             u.user_status = 1 
-#             OR (u.user_status = 0 AND u.payoff_score > 4);
-#     """
+logging.basicConfig(level=logging.INFO, format='%(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
-#     conn = get_db_connection()
-#     try:
-#         raw_dat = pd.read_sql(query, conn)
-#     finally:
-#         conn.close()
+def load_data_set_v1()-> Optional[pd.DataFrame]:
+    query = """
+        SELECT 
+            c.cdd_1 AS cdd1, c.cdd_2 AS cdd2, c.cdd_3 AS cdd3, c.cdd_4 AS cdd4, 
+            c.cdd_5 AS cdd5, c.cdd_6 AS cdd6, c.cdd_7 AS cdd7, c.cdd_8 AS cdd8, 
+            c.cdd_9 AS cdd9, c.cdd_10 AS cdd10, c.cdd_11 AS cdd11, 
+            u.latest_loan_payoff_score AS ins, u.user_status AS ust 
+        FROM 
+            cdd_answers AS c
+        INNER JOIN 
+            users AS u ON c.user_id = u.id
+        WHERE 
+            u.user_status = 1 
+            OR (u.user_status = 0 AND u.payoff_score > 4);
+        """
+    try:
+        conn = get_db_connection() 
+        raw_dat = pd.read_sql(query, conn)
+        logger.info(f"Load data completed")
+        return raw_dat
+    except Exception as e:
+        logger.error(f"Error while executing query: {e}")
+        return None
+    finally:
+        if 'conn' in locals():
+            conn.close()
 
-#     return raw_dat
 
-def load_data_fsk_v1():
+def load_data_fsk_v1() -> Optional[pd.DataFrame]:
+
     query = """
         SELECT 
             f.fht_1 AS fht1, 
@@ -46,7 +56,6 @@ def load_data_fsk_v1():
             f.kmsi_6 AS kmsi6, 
             f.kmsi_7 AS kmsi7, 
             f.kmsi_8 AS kmsi8,
-            u.latest_loan_payoff_score AS lps, 
             u.user_status AS ust,
             u.id AS user_id
         FROM 
@@ -55,17 +64,25 @@ def load_data_fsk_v1():
             users AS u ON f.user_id = u.id
         WHERE 
             (u.user_status = 1 AND u.user_verified = 3)
-            OR (u.user_status = 0 AND u.user_verified = 3 AND u.payoff_score > 4 );
+            OR (u.user_status = 0 AND u.user_verified = 3 AND u.payoff_score > 4);
     """
-    conn = get_db_connection()
     try:
+        conn = get_db_connection() 
         raw_dat = pd.read_sql(query, conn)
-        #print(raw_dat)
-        print("\n load data completed")
-        print("Shape:", raw_dat.shape)
+        logger.info(f"Load data completed")
         return raw_dat
     except Exception as e:
-        print(f"Error while executing query: {e}")
-        return []
+        logger.error(f"Error while executing query: {e}")
+        return None
     finally:
-        conn.close()
+        if 'conn' in locals():
+            conn.close()
+
+if __name__ == "__main__":
+    logger.info("Starting data loading process")
+    raw_data = load_data_fsk_v1()
+    if raw_data is not None:
+        logger.info(f"Raw DataFrame Shape: {raw_data.shape}")
+        logger.info(f"Raw DataFrame Head:\n{raw_data.head().to_string()}")
+    else:
+        logger.error("Failed to load data.")
