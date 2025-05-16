@@ -1,8 +1,7 @@
-from typing import Optional
-from .data_loading import data_loading_fsk_v1
-from scipy.stats import skew
 import pandas as pd
 import logging
+from typing import Optional
+from .data_loading import data_loading_fsk_v1
 
 logging.basicConfig(
     level=logging.INFO,
@@ -33,33 +32,21 @@ def data_cleaning_fsk_v1(raw_dat: pd.DataFrame, outlier_method: str = 'median') 
         if missing_cols:
             logger.error(f"Missing required columns: {missing_cols}")
             return None
-
+        
         clean_dat = clean_dat.drop_duplicates()
         logger.info(f"Removed {initial_rows - len(clean_dat)} duplicate rows.")
 
-        clean_dat[numeric_columns] = clean_dat[numeric_columns].apply(pd.to_numeric, errors='coerce')
-        clean_dat['ust'] = pd.to_numeric(clean_dat['ust'], errors='coerce').astype('Int64')
+        for col in categorical_columns:
+            clean_dat[col] = pd.to_numeric(clean_dat[col], errors='coerce').astype('Int64')
+        
+        for col in numeric_columns:
+            clean_dat[col] = pd.to_numeric(clean_dat[col], errors='coerce').astype('Int64')
 
         valid_values = [0, 1]
         invalid = clean_dat[~clean_dat['ust'].isin(valid_values)]['ust']
         if not invalid.empty:
             clean_dat = clean_dat[clean_dat['ust'].isin(valid_values)]
             logger.info(f"Dropped {len(invalid)} rows with invalid values in ust.")
-
-        for col in numeric_columns:
-            if clean_dat[col].isna().any():
-                if clean_dat[col].dropna().count() < 3:
-                    fill_value = clean_dat[col].median()
-                    method = 'median (insufficient data)'
-                else:
-                    col_skew = skew(clean_dat[col].dropna())
-                    skew_threshold = 1.0
-                    fill_value = clean_dat[col].median() if abs(col_skew) > skew_threshold else clean_dat[col].mean()
-                    method = 'median' if abs(col_skew) > skew_threshold else 'mean'
-                clean_dat[col] = clean_dat[col].fillna(fill_value)
-                logger.info(f"Filled NaN in {col} with {method} ({fill_value:.2f}), skewness: {col_skew:.2f}")
-            else:
-                logger.info(f"No NaN values in {col}")
 
         if clean_dat.empty:
             logger.error("DataFrame is empty after cleaning.")
@@ -70,7 +57,6 @@ def data_cleaning_fsk_v1(raw_dat: pd.DataFrame, outlier_method: str = 'median') 
     except Exception as e:
         logger.error(f"Error during cleaning: {str(e)}")
         return None
-
 
 if __name__ == "__main__":
     raw_dat = data_loading_fsk_v1()

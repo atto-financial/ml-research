@@ -1,8 +1,9 @@
+import pandas as pd
+import numpy as np
+import logging
 from typing import Optional
 from .data_loading import data_loading_fsk_v1
 from .data_cleaning import data_cleaning_fsk_v1
-import pandas as pd
-import logging
 
 logging.basicConfig(
     level=logging.INFO,
@@ -14,18 +15,20 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def data_transform_fsk_v1(clean_dat: pd.DataFrame) -> Optional[pd.DataFrame]:
-   
+ 
     try:
+        
         if clean_dat is None or clean_dat.empty:
             logger.error("Input DataFrame is None or empty.")
             return None
 
         transform_dat = clean_dat.copy()
+
         columns_to_drop = ['user_id']
         existing_columns = [col for col in columns_to_drop if col in transform_dat.columns]
         
         if existing_columns:
-            transform_dat = clean_dat.drop(columns=existing_columns)
+            transform_dat = transform_dat.drop(columns=existing_columns)
             logger.info(f"Dropped columns: {existing_columns}")
         else:
             logger.info("No columns to drop found in input data.")
@@ -45,38 +48,75 @@ def data_transform_fsk_v1(clean_dat: pd.DataFrame) -> Optional[pd.DataFrame]:
         kmsi16_columns = [col for col in kmsi16_columns if col in transform_dat.columns]
         kmsi78_columns = [col for col in kmsi78_columns if col in transform_dat.columns]
 
+        mapped_columns = fht_columns + set_columns + kmsi16_columns + kmsi78_columns
+
         for col in fht_columns:
             invalid_rows = ~transform_dat[col].isin(fht_mapping.keys())
             if invalid_rows.any():
                 transform_dat = transform_dat[~invalid_rows]
                 logger.warning(f"Dropped {invalid_rows.sum()} rows with invalid values in {col}")
-            transform_dat[col] = transform_dat[col].map(fht_mapping)
-            logger.info(f"Transformed values in {col} using fht_mapping.")
 
         for col in set_columns:
             invalid_rows = ~transform_dat[col].isin(set_mapping.keys())
             if invalid_rows.any():
                 transform_dat = transform_dat[~invalid_rows]
                 logger.warning(f"Dropped {invalid_rows.sum()} rows with invalid values in {col}")
-            transform_dat[col] = transform_dat[col].map(set_mapping)
-            logger.info(f"Validated values in {col} using set_mapping.")
 
         for col in kmsi16_columns:
             invalid_rows = ~transform_dat[col].isin(kmsi16_mapping.keys())
             if invalid_rows.any():
                 transform_dat = transform_dat[~invalid_rows]
                 logger.warning(f"Dropped {invalid_rows.sum()} rows with invalid values in {col}")
-            transform_dat[col] = transform_dat[col].map(kmsi16_mapping)
-            logger.info(f"Transformed values in {col} using kmsi16_mapping.")
 
         for col in kmsi78_columns:
             invalid_rows = ~transform_dat[col].isin(kmsi78_mapping.keys())
             if invalid_rows.any():
                 transform_dat = transform_dat[~invalid_rows]
                 logger.warning(f"Dropped {invalid_rows.sum()} rows with invalid values in {col}")
-            transform_dat[col] = transform_dat[col].map(kmsi78_mapping)
-            logger.info(f"Transformed values in {col} using kmsi78_mapping.")
+                
+        if fht_columns:
+            transform_dat[fht_columns] = transform_dat[fht_columns].apply(
+                lambda x: x.map(fht_mapping)
+            ).astype(np.float64)
+            logger.info(f"Transformed values in {fht_columns} using fht_mapping to float64.")
 
+        if set_columns:
+            transform_dat[set_columns] = transform_dat[set_columns].apply(
+                lambda x: x.map(set_mapping)
+            ).astype(np.float64)
+            logger.info(f"Transformed values in {set_columns} using set_mapping to float64.")
+
+        if kmsi16_columns:
+            transform_dat[kmsi16_columns] = transform_dat[kmsi16_columns].apply(
+                lambda x: x.map(kmsi16_mapping)
+            ).astype(np.float64)
+            logger.info(f"Transformed values in {kmsi16_columns} using kmsi16_mapping to float64.")
+
+        if kmsi78_columns:
+            transform_dat[kmsi78_columns] = transform_dat[kmsi78_columns].apply(
+                lambda x: x.map(kmsi78_mapping)
+            ).astype(np.float64)
+            logger.info(f"Transformed values in {kmsi78_columns} using kmsi78_mapping to float64.")
+            
+        if mapped_columns:
+            nan_count = transform_dat[mapped_columns].isna().sum().sum()
+            if nan_count > 0:
+                logger.warning(f"Found {nan_count} NaN values after mapping. Filling with column medians.")
+                transform_dat[mapped_columns] = transform_dat[mapped_columns].fillna(
+                    transform_dat[mapped_columns].median()
+                )
+
+        if 'ust' in transform_dat.columns:
+            invalid_ust = ~transform_dat['ust'].isin([0, 1])
+            if invalid_ust.any():
+                logger.warning(f"Dropped {invalid_ust.sum()} rows with invalid values in ust")
+                transform_dat = transform_dat[~invalid_ust]
+            
+            transform_dat['ust'] = transform_dat['ust'].astype(np.int64)
+            logger.info("Encoded ust column to int64.")
+            
+        logger.info("Data transformation completed successfully.")
+        
         return transform_dat
 
     except Exception as e:

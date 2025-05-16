@@ -1,13 +1,12 @@
-
+import logging
+import pandas as pd
+import numpy as np
+import os
 from typing import Optional
 from datetime import datetime
 from .data_loading import data_loading_fsk_v1
 from .data_cleaning import data_cleaning_fsk_v1
 from .data_transforming import data_transform_fsk_v1
-import logging
-import pandas as pd
-import numpy as np
-import os
 
 logging.basicConfig(
     level=logging.INFO,
@@ -50,7 +49,7 @@ def data_engineer_fsk_v1(transform_dat: pd.DataFrame) -> Optional[pd.DataFrame]:
             engineer_dat[f'{group}_score_avg'] = engineer_dat[codes].mean(axis=1)
 
         for group, codes in groups.items():
-            engineer_dat[f'{group}_high_score_count'] = (engineer_dat[codes] == 3).sum(axis=1)
+            engineer_dat[f'{group}_high_score_count'] = (engineer_dat[codes] == 3).sum(axis=1).astype('float64')
             engineer_dat['debt_to_payoff_ratio'] = engineer_dat['debt_score_sum'] / (engineer_dat['payoff_score_sum'] + 1)
             engineer_dat['loan_to_saving_ratio'] = engineer_dat['loan_score_sum'] / (engineer_dat['saving_score_sum'] + 1)
             engineer_dat['worship_to_vigilance_ratio'] = engineer_dat['worship_score_sum'] / (engineer_dat['vigilance_score_sum'] + 1)

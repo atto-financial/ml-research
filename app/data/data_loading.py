@@ -1,7 +1,9 @@
+import pandas as pd
+import numpy as np
+import logging
 from typing import Optional
 from app.utils.db_connection import get_db_connection
-import pandas as pd
-import logging
+
 
 logging.basicConfig(
     level=logging.INFO,
@@ -62,7 +64,7 @@ def data_loading_fsk_v1() -> Optional[pd.DataFrame]:
             f.kmsi_6 AS kmsi6, 
             f.kmsi_7 AS kmsi7, 
             f.kmsi_8 AS kmsi8,
-            u.beta_train AS btt,
+            u.user_blacklist AS ubl,
             u.user_status AS ust,
             u.id AS user_id
         FROM 
@@ -70,14 +72,23 @@ def data_loading_fsk_v1() -> Optional[pd.DataFrame]:
         INNER JOIN 
             users AS u ON f.user_id = u.id
         WHERE 
-            (u.user_status = 1 AND u.user_verified = 3) OR (u.beta_train = 1 AND u.user_verified = 3)
-            OR (u.user_status = 0 AND u.user_verified = 3 AND u.payoff_score > 4);
+            (u.user_status = 1 AND u.user_verified = 3) 
+            OR (u.user_status = 0 AND u.user_verified = 3 AND u.payoff_score >= 4)
+            OR (u.user_blacklist =1 AND u.user_verified = 3);
     """
     try:
         conn = get_db_connection() 
         raw_dat = pd.read_sql(query, conn)
-        logger.info(f"Load data completed")
+        logger.info(f"Load raw data completed")
+        
+        if 'ubl' in raw_dat.columns and 'ust' in raw_dat.columns:
+            raw_dat.loc[(raw_dat['ubl'] == 1) & (raw_dat['ust'].isna()), 'ust'] = np.int64(1)
+            raw_dat.drop(columns=['ubl'], inplace=True)
+        else:
+            print("Error: Columns 'ubl' or 'ust' not found in DataFrame")
+        
         return raw_dat
+    
     except Exception as e:
         logger.error(f"Error while executing query: {e}")
         return None
