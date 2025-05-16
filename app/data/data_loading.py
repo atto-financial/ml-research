@@ -3,23 +3,29 @@ from app.utils.db_connection import get_db_connection
 import pandas as pd
 import logging
 
-logging.basicConfig(level=logging.INFO, format='%(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler()
+    ]
+)
 logger = logging.getLogger(__name__)
 
-def load_data_set_v1()-> Optional[pd.DataFrame]:
+def data_loading_set_v1()-> Optional[pd.DataFrame]:
     query = """
         SELECT 
             c.cdd_1 AS cdd1, c.cdd_2 AS cdd2, c.cdd_3 AS cdd3, c.cdd_4 AS cdd4, 
             c.cdd_5 AS cdd5, c.cdd_6 AS cdd6, c.cdd_7 AS cdd7, c.cdd_8 AS cdd8, 
             c.cdd_9 AS cdd9, c.cdd_10 AS cdd10, c.cdd_11 AS cdd11, 
-            u.latest_loan_payoff_score AS ins, u.user_status AS ust 
+            u.latest_loan_payoff_score AS ins, u.user_extravagance AS ust 
         FROM 
             cdd_answers AS c
         INNER JOIN 
             users AS u ON c.user_id = u.id
         WHERE 
-            u.user_status = 1 
-            OR (u.user_status = 0 AND u.payoff_score > 4);
+            u.user_extravagance = 1 
+            OR (u.user_extravagance = 0 AND u.payoff_score > 4);
         """
     try:
         conn = get_db_connection() 
@@ -34,7 +40,7 @@ def load_data_set_v1()-> Optional[pd.DataFrame]:
             conn.close()
 
 
-def load_data_fsk_v1() -> Optional[pd.DataFrame]:
+def data_loading_fsk_v1() -> Optional[pd.DataFrame]:
 
     query = """
         SELECT 
@@ -80,9 +86,11 @@ def load_data_fsk_v1() -> Optional[pd.DataFrame]:
 
 if __name__ == "__main__":
     logger.info("Starting data loading process")
-    raw_data = load_data_fsk_v1()
-    if raw_data is not None:
-        logger.info(f"Raw DataFrame Shape: {raw_data.shape}")
-        logger.info(f"Raw DataFrame Head:\n{raw_data.head().to_string()}")
+    raw_dat = data_loading_fsk_v1()
+    if raw_dat is not None:
+        logger.info(f"Raw DataFrame Shape: {raw_dat.shape}")
+        logger.info(f"Raw DataFrame Columns: {raw_dat.columns.tolist()}")
+        logger.info(f"Raw DataFrame Info:\n{raw_dat.info()}")
+        logger.info(f"Raw DataFrame Sample:\n{raw_dat.sample(5).to_string()}")
     else:
         logger.error("Failed to load data.")
