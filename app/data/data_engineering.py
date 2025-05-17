@@ -6,7 +6,7 @@ from typing import Optional
 from datetime import datetime
 from .data_loading import data_loading_fsk_v1
 from .data_cleaning import data_cleaning_fsk_v1
-from .data_transforming import data_transform_fsk_v1
+from .data_transforming import data_transforming_fsk_v1
 
 logging.basicConfig(
     level=logging.INFO,
@@ -17,7 +17,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-def data_engineer_fsk_v1(transform_dat: pd.DataFrame) -> Optional[pd.DataFrame]:
+def data_engineering_fsk_v1(transform_dat: pd.DataFrame) -> Optional[pd.DataFrame]:
     try:
         if transform_dat is None or transform_dat.empty:
             logger.error("Input DataFrame is None or empty.")
@@ -126,7 +126,7 @@ if __name__ == "__main__":
                 index=False,
                 encoding='utf-8-sig'
             )                             
-            transformed_dat = data_transform_fsk_v1(cleaned_dat)
+            transformed_dat = data_transforming_fsk_v1(cleaned_dat)
             logger.info("Data transformation completed.")
             if transformed_dat is not None:
                 transformed_dat.to_csv(
@@ -134,7 +134,7 @@ if __name__ == "__main__":
                     index=False,
                     encoding='utf-8-sig'
                 ) 
-                engineer_dat = data_engineer_fsk_v1(transformed_dat)
+                engineer_dat = data_engineering_fsk_v1(transformed_dat)
                 logger.info("Feature engineering completed.")   
                 if engineer_dat is not None:
                     logger.info(f"Engineered DataFrame Shape: {engineer_dat.shape}")

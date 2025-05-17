@@ -9,8 +9,8 @@ from datetime import datetime
 from scipy.stats import skew
 from .data_loading import data_loading_fsk_v1
 from .data_cleaning import data_cleaning_fsk_v1
-from .data_transforming import data_transform_fsk_v1
-from .data_engineering import data_engineer_fsk_v1
+from .data_transforming import data_transforming_fsk_v1
+from .data_engineering import data_engineering_fsk_v1
 
 logging.basicConfig(
     level=logging.INFO,
@@ -132,7 +132,7 @@ if __name__ == "__main__":
                 index=False,
                 encoding='utf-8-sig'
             )                             
-            transform_dat = data_transform_fsk_v1(cleaned_dat)
+            transform_dat = data_transforming_fsk_v1(cleaned_dat)
             logger.info("Data transformation completed.")
             if transform_dat is not None:
                 logger.info(f"Transformed DataFrame Shape: {transform_dat.shape}")           
@@ -142,7 +142,7 @@ if __name__ == "__main__":
                     index=False,
                     encoding='utf-8-sig'
                 ) 
-                engineer_dat = data_engineer_fsk_v1(transform_dat)
+                engineer_dat = data_engineering_fsk_v1(transform_dat)
                 logger.info("Feature engineering completed.")   
                 if engineer_dat is not None:
                     logger.info(f"Engineered DataFrame Shape: {engineer_dat.shape}")

@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 from typing import Optional, Tuple
-from sklearn.model_selection import train_test_split, cross_val_score, cross_val_predict, StratifiedKFold
+from sklearn.model_selection import train_test_split, cross_val_predict, StratifiedKFold
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.feature_selection import RFE
 from sklearn.metrics import accuracy_score, classification_report, precision_score, recall_score, roc_auc_score, f1_score
@@ -12,11 +12,10 @@ from imblearn.over_sampling import SMOTE
 from joblib import dump
 from app.data.data_loading import data_loading_fsk_v1
 from app.data.data_cleaning import data_cleaning_fsk_v1
-from app.data.data_transforming import data_transform_fsk_v1
-from app.data.data_engineering import data_engineer_fsk_v1
+from app.data.data_transforming import data_transforming_fsk_v1
+from app.data.data_engineering import data_engineering_fsk_v1
 from app.data.data_preprocessing import data_preprocessing
 from app.models.correlation import compute_correlations
-from math import ceil
 
 logging.basicConfig(
     level=logging.INFO,
@@ -71,7 +70,6 @@ def features_importance(model, X, y=None) -> pd.DataFrame:
         logger.error(f"Error calculating feature importance: {str(e)}")
         return pd.DataFrame()
 
-# Modified: Updated to use StratifiedKFold and SMOTE
 def rfe_feature_selection(X: pd.DataFrame, y: pd.Series, target_col: str = 'ust', scoring: str = 'roc_auc') -> Tuple[list, RandomForestClassifier, dict]:
     try:
         current_features = list(X.columns)
@@ -82,16 +80,15 @@ def rfe_feature_selection(X: pd.DataFrame, y: pd.Series, target_col: str = 'ust'
 
         logger.info(f"Starting RFE feature selection with {len(current_features)} features: {current_features}")
 
-        # Modified: Use StratifiedKFold
+       
         n_samples = len(y)
-        n_folds = min(5, n_samples)  # Modified: Minimum 5 folds or number of samples
+        n_folds = min(5, n_samples)  
         cv = StratifiedKFold(n_splits=n_folds, shuffle=True, random_state=42)
         logger.info(f"Using StratifiedKFold with {n_folds} folds")
 
-        # Modified: Adjust model parameters based on dataset size
         max_depth = 5 if n_samples <= 100 else 8
         min_samples_split = 10 if n_samples <= 100 else 5
-        n_features_to_select = max(3, len(current_features) // 2)  # Modified: Reduced to 3 for small dataset
+        n_features_to_select = max(3, len(current_features) // 2) 
 
         model = RandomForestClassifier(
             n_estimators=50,
@@ -101,7 +98,6 @@ def rfe_feature_selection(X: pd.DataFrame, y: pd.Series, target_col: str = 'ust'
             random_state=42
         )
 
-        # Modified: Apply SMOTE
         smote = SMOTE(random_state=42, k_neighbors=3)
         try:
             X_resampled, y_resampled = smote.fit_resample(X, y)
@@ -112,17 +108,14 @@ def rfe_feature_selection(X: pd.DataFrame, y: pd.Series, target_col: str = 'ust'
         except ValueError as e:
             logger.warning(f"SMOTE failed: {str(e)}. Proceeding with original data.")
 
-        # Modified: Use RFE for feature selection
         rfe = RFE(estimator=model, n_features_to_select=n_features_to_select)
         rfe.fit(X, y)
         selected_features = X.columns[rfe.support_].tolist()
         logger.info(f"RFE selected {len(selected_features)} features: {selected_features}")
 
-        # Modified: Evaluate model with selected features using cross-validation
         X_selected = X[selected_features]
         model.fit(X_selected, y)
 
-        # Modified: Check class balance in each fold and handle NaN ROC AUC
         cv_scores = []
         for train_idx, test_idx in cv.split(X_selected, y):
             X_train_fold, X_test_fold = X_selected.iloc[train_idx], X_selected.iloc[test_idx]
@@ -145,7 +138,6 @@ def rfe_feature_selection(X: pd.DataFrame, y: pd.Series, target_col: str = 'ust'
         cv_score = np.nanmean(cv_scores) if cv_scores else np.nan
         logger.info(f"Cross-validated {scoring} with selected features: {cv_score:.3f}")
 
-        # Modified: Split data for additional evaluation
         X_train, X_test, y_train, y_test = train_test_split(
             X_selected, y, test_size=0.2, random_state=42, stratify=y
         )
@@ -154,7 +146,6 @@ def rfe_feature_selection(X: pd.DataFrame, y: pd.Series, target_col: str = 'ust'
         y_prob = model.predict_proba(X_test)[:, 1]
         test_roc_auc = roc_auc_score(y_test, y_prob) if len(np.unique(y_test)) > 1 else np.nan
 
-        # Modified: Compute cross-validated metrics
         y_pred_cv = cross_val_predict(model, X_selected, y, cv=cv)
         y_prob_cv = cross_val_predict(model, X_selected, y, cv=cv, method='predict_proba')
         cv_accuracy = accuracy_score(y, y_pred_cv)
@@ -190,7 +181,6 @@ def rfe_feature_selection(X: pd.DataFrame, y: pd.Series, target_col: str = 'ust'
         logger.error(f"Error during RFE feature selection: {str(e)}")
         return [], None, None
 
-# Modified: Updated to include SMOTE and StratifiedKFold
 def train_model(clean_engineer_dat: pd.DataFrame, selected_features: list, target_col: str = 'ust') -> Tuple[Optional[RandomForestClassifier], Optional[dict]]:
     try:
         if clean_engineer_dat is None or clean_engineer_dat.empty:
@@ -274,10 +264,10 @@ if __name__ == "__main__":
         cleaned_dat = data_cleaning_fsk_v1(raw_dat, outlier_method='median')
         if cleaned_dat is not None:
             logger.info(f"Cleaned DataFrame Shape: {cleaned_dat.shape}")
-            transformed_dat = data_transform_fsk_v1(cleaned_dat)
+            transformed_dat = data_transforming_fsk_v1(cleaned_dat)
             if transformed_dat is not None:
                 logger.info(f"Transformed DataFrame Shape: {transformed_dat.shape}")
-                engineer_dat = data_engineer_fsk_v1(transformed_dat)
+                engineer_dat = data_engineering_fsk_v1(transformed_dat)
                 if engineer_dat is not None:
                     logger.info(f"Features Engineered DataFrame Shape: {engineer_dat.shape}")
                     result = data_preprocessing(engineer_dat)

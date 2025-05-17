@@ -2,8 +2,8 @@ from typing import Optional
 from datetime import datetime
 from app.data.data_loading import data_loading_fsk_v1
 from app.data.data_cleaning import data_cleaning_fsk_v1
-from app.data.data_transforming import data_transform_fsk_v1
-from app.data.data_engineering import data_engineer_fsk_v1
+from app.data.data_transforming import data_transforming_fsk_v1
+from app.data.data_engineering import data_engineering_fsk_v1
 from app.data.data_preprocessing import data_preprocessing
 import logging
 import pandas as pd
@@ -21,24 +21,24 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-def compute_correlations(engineer_dat: pd.DataFrame) -> Optional[pd.DataFrame]:
+def compute_correlations(clean_engineer_dat: pd.DataFrame) -> Optional[pd.DataFrame]:
    
     try:
-        if engineer_dat is None or engineer_dat.empty:
+        if clean_engineer_dat is None or clean_engineer_dat.empty:
             logger.error("Input DataFrame is None or empty.")
             return None
 
         exclude_cols = ['ust'] + [f'{group}_sum' for group in ['spending', 'saving', 'paying_off', 'planning', 'debt', 'avoidance', 'worship', 'status', 'vigilance']]
-        numeric_cols = [col for col in engineer_dat.columns if col not in exclude_cols and engineer_dat[col].dtype in [np.float64, np.int64]]
+        numeric_cols = [col for col in clean_engineer_dat.columns if col not in exclude_cols and clean_engineer_dat[col].dtype in [np.float64, np.int64]]
 
         correlations = {}
         for col in numeric_cols:
-            if engineer_dat[col].std() == 0:
+            if clean_engineer_dat[col].std() == 0:
                 logger.warning(f"Skipping {col}: Variance is zero (all values are the same).")
                 correlations[col] = {'Pearson': np.nan, 'Spearman': np.nan}
                 continue
-            pearson_corr = engineer_dat[col].corr(engineer_dat['ust'], method='pearson')
-            spearman_corr = engineer_dat[col].corr(engineer_dat['ust'], method='spearman')
+            pearson_corr = clean_engineer_dat[col].corr(clean_engineer_dat['ust'], method='pearson')
+            spearman_corr = clean_engineer_dat[col].corr(clean_engineer_dat['ust'], method='spearman')
             correlations[col] = {'Pearson': pearson_corr, 'Spearman': spearman_corr}
 
         corr_dat = pd.DataFrame.from_dict(correlations, orient='index')
@@ -146,21 +146,21 @@ if __name__ == "__main__":
         cleaned_dat = data_cleaning_fsk_v1(raw_dat, outlier_method='median')
         if cleaned_dat is not None:
             logger.info(f"Cleaned DataFrame Shape: {cleaned_dat.shape}")
-            transformed_dat = data_transform_fsk_v1(cleaned_dat)
+            transformed_dat = data_transforming_fsk_v1(cleaned_dat)
             if transformed_dat is not None:
                 logger.info(f"Transformed DataFrame Shape: {transformed_dat.shape}")
-                engineer_dat = data_engineer_fsk_v1(transformed_dat)
-                if engineer_dat is not None:
-                    logger.info(f"Features Engineered DataFrame Shape: {engineer_dat.shape}")
-                    cleaned_engineered_dat = data_preprocessing(engineer_dat)
+                clean_engineer_dat = data_engineering_fsk_v1(transformed_dat)
+                if clean_engineer_dat is not None:
+                    logger.info(f"Features Engineered DataFrame Shape: {clean_engineer_dat.shape}")
+                    cleaned_engineered_dat = data_preprocessing(clean_engineer_dat)
                     if cleaned_engineered_dat is not None:
                         logger.info(f"Cleaned Engineered DataFrame Shape (After Outlier Removal): {cleaned_engineered_dat.shape}")
                         cleaned_engineered_dat.to_csv(
-                                os.path.join(output_dir, f"cleaned_engineer_dat_{timestamp}.csv"),
+                                os.path.join(output_dir, f"cleaned_clean_engineer_dat_{timestamp}.csv"),
                                 index=False,
                                 encoding='utf-8-sig'
                             )
-                        logger.info(f"Saved cleaned engineered data to {output_dir}/cleaned_engineer_dat_{timestamp}.csv")
+                        logger.info(f"Saved cleaned engineered data to {output_dir}/cleaned_clean_engineer_dat_{timestamp}.csv")
                         corr_dat = compute_correlations(cleaned_engineered_dat)
                         if corr_dat is not None:
                             logger.info("Correlations with ust (Pearson and Spearman):")

@@ -16,14 +16,13 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-def data_transform_fsk_v1(clean_dat: pd.DataFrame) -> Optional[pd.DataFrame]:
+def data_transforming_fsk_v1(clean_dat: pd.DataFrame) -> Optional[pd.DataFrame]:
     try:
         if clean_dat is None or clean_dat.empty:
             logger.error("Input DataFrame is None or empty.")
             return None
 
         transform_dat = clean_dat.copy()
-
         
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         exclude_cols = ['ust']
@@ -147,7 +146,7 @@ if __name__ == "__main__":
         clean_dat = data_cleaning_fsk_v1(raw_dat, outlier_method='median')
         logger.info("Data cleaning completed.")
         if clean_dat is not None:
-            transform_dat = data_transform_fsk_v1(clean_dat)
+            transform_dat = data_transforming_fsk_v1(clean_dat)
             logger.info("Data transformation completed.")
             if transform_dat is not None:
                 logger.info(f"Transformed DataFrame Shape: {transform_dat.shape}")
