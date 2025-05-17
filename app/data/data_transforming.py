@@ -1,7 +1,9 @@
 import pandas as pd
 import numpy as np
 import logging
+import os
 from typing import Optional
+from datetime import datetime
 from .data_loading import data_loading_fsk_v1
 from .data_cleaning import data_cleaning_fsk_v1
 
@@ -15,14 +17,27 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def data_transform_fsk_v1(clean_dat: pd.DataFrame) -> Optional[pd.DataFrame]:
- 
     try:
-        
         if clean_dat is None or clean_dat.empty:
             logger.error("Input DataFrame is None or empty.")
             return None
 
         transform_dat = clean_dat.copy()
+
+        
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        exclude_cols = ['ust']
+        numeric_cols = [col for col in transform_dat.columns if col not in exclude_cols and transform_dat[col].dtype in [np.float64, np.int64]]
+        zero_variance_cols = [col for col in numeric_cols if transform_dat[col].var() == 0]
+        if zero_variance_cols:
+            logger.info(f"Found {len(zero_variance_cols)} features with zero variance before mapping: {zero_variance_cols}")
+            
+            zero_variance_df = pd.DataFrame(zero_variance_cols, columns=['zero_variance_feature'])
+            zero_variance_path = os.path.join('output_data', f"zero_variance_features_before_mapping_{timestamp}.csv")
+            zero_variance_df.to_csv(zero_variance_path, index=False, encoding='utf-8-sig')
+            logger.info(f"Saved zero variance features to {zero_variance_path}")
+        else:
+            logger.info("No features with zero variance found before mapping.")
 
         columns_to_drop = ['user_id']
         existing_columns = [col for col in columns_to_drop if col in transform_dat.columns]
@@ -124,6 +139,8 @@ def data_transform_fsk_v1(clean_dat: pd.DataFrame) -> Optional[pd.DataFrame]:
         return None
        
 if __name__ == "__main__":
+    output_dir = "output_data"
+    os.makedirs(output_dir, exist_ok=True)  
     raw_dat = data_loading_fsk_v1()
     logger.info("Loading data completed.")
     if raw_dat is not None:
@@ -133,14 +150,13 @@ if __name__ == "__main__":
             transform_dat = data_transform_fsk_v1(clean_dat)
             logger.info("Data transformation completed.")
             if transform_dat is not None:
-                logger.info(f"Raw DataFrame Shape: {transform_dat.shape}")
-                logger.info(f"Raw DataFrame Columns: {transform_dat.columns.tolist()}")
-                logger.info(f"Raw DataFrame Info:\n{transform_dat.info()}")
-                logger.info(f"Raw DataFrame Sample:\n{transform_dat.sample(5).to_string()}")
+                logger.info(f"Transformed DataFrame Shape: {transform_dat.shape}")
+                logger.info(f"Transformed DataFrame Columns: {transform_dat.columns.tolist()}")
+                logger.info(f"Transformed DataFrame Info:\n{transform_dat.info()}")
+                logger.info(f"Transformed DataFrame Sample:\n{transform_dat.sample(5).to_string()}")
             else:
                 print("Failed to transform data.")
         else:
             print("Failed to clean data.")
     else:
         print("Failed to load data.")
-

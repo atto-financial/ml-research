@@ -1,0 +1,2 @@
+﻿accuracy,precision,f1,precision_0,recall_0,f1_0,precision_1,recall_1,f1_1,mean_cv_accuracy,std_cv_accuracy,cross_validated_accuracy_mean,cross_validated_accuracy_all_folds,cross_validated_accuracy,cross_validated_precision,cross_validated_recall,cross_validated_f1,cross_validated_roc_auc,test_roc_auc
+1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,0.9666666666666666,0.0666666666666667,0.9666666666666666,"[np.float64(1.0), np.float64(1.0), np.float64(1.0), np.float64(1.0), np.float64(0.8333333333333333)]",0.8846153846153846,0.8125,1.0,0.896551724137931,0.9763313609467456,1.0

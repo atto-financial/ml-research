@@ -31,6 +31,24 @@ def data_preprocessing(engineer_dat: pd.DataFrame, outlier_method: str = 'median
         exclude_cols = ['ust']
         numeric_cols = [col for col in clean_engineer_dat.columns if col not in exclude_cols and clean_engineer_dat[col].dtype in [np.float64, np.int64]]
         
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        zero_variance_cols = [col for col in numeric_cols if clean_engineer_dat[col].var() == 0]
+        if zero_variance_cols:
+            clean_engineer_dat = clean_engineer_dat.drop(columns=zero_variance_cols)
+            logger.info(f"Dropped {len(zero_variance_cols)} features with zero variance: {zero_variance_cols}")
+            
+            zero_variance_df = pd.DataFrame(zero_variance_cols, columns=['zero_variance_feature'])
+            zero_variance_path = os.path.join('output_data', f"zero_variance_features_{timestamp}.csv")
+            zero_variance_df.to_csv(zero_variance_path, index=False, encoding='utf-8-sig')
+            logger.info(f"Saved zero variance features to {zero_variance_path}")
+            numeric_cols = [col for col in clean_engineer_dat.columns if col not in exclude_cols and clean_engineer_dat[col].dtype in [np.float64, np.int64]]
+        else:
+            logger.info("No features with zero variance found.")
+
+        if len(clean_engineer_dat.columns) == 1 and 'ust' in clean_engineer_dat.columns:
+            logger.error("DataFrame contains only 'ust' column after dropping zero variance features.")
+            return None, None
+
         columns_to_drop = [col for col in clean_engineer_dat.columns if col.endswith('_sum')]
         if columns_to_drop:
             clean_engineer_dat = clean_engineer_dat.drop(columns=columns_to_drop)
@@ -79,7 +97,7 @@ def data_preprocessing(engineer_dat: pd.DataFrame, outlier_method: str = 'median
         return clean_engineer_dat, scaler
 
     except Exception as e:
-        logger.error(f"Error during outlier removal: {str(e)}")
+        logger.error(f"Error during preprocessing: {str(e)}")
         return None, None
 
 if __name__ == "__main__":

@@ -18,7 +18,6 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def data_engineer_fsk_v1(transform_dat: pd.DataFrame) -> Optional[pd.DataFrame]:
- 
     try:
         if transform_dat is None or transform_dat.empty:
             logger.error("Input DataFrame is None or empty.")
@@ -26,6 +25,15 @@ def data_engineer_fsk_v1(transform_dat: pd.DataFrame) -> Optional[pd.DataFrame]:
 
         engineer_dat = transform_dat.copy()
         logger.info(f"Columns in Transformed DataFrame: {engineer_dat.columns.tolist()}")
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        exclude_cols = ['ust']
+        numeric_cols = [col for col in engineer_dat.columns if col not in exclude_cols and engineer_dat[col].dtype in [np.float64, np.int64]]
+        zero_variance_before = [col for col in numeric_cols if engineer_dat[col].var() == 0]
+        if zero_variance_before:
+            logger.info(f"Found {len(zero_variance_before)} features with zero variance before feature engineering: {zero_variance_before}")
+        else:
+            logger.info("No features with zero variance found before feature engineering.")
 
         groups = {
             'spending': ['fht1', 'fht2'],
@@ -70,6 +78,27 @@ def data_engineer_fsk_v1(transform_dat: pd.DataFrame) -> Optional[pd.DataFrame]:
         engineer_dat.replace([np.inf, -np.inf], np.nan, inplace=True)
         engineer_dat.fillna(engineer_dat.median(), inplace=True)
 
+        numeric_cols = [col for col in engineer_dat.columns if col not in exclude_cols and engineer_dat[col].dtype in [np.float64, np.int64]]
+        zero_variance_after = [col for col in numeric_cols if engineer_dat[col].var() == 0]
+        if zero_variance_after:
+            logger.info(f"Found {len(zero_variance_after)} features with zero variance after feature engineering: {zero_variance_after}")
+        else:
+            logger.info("No features with zero variance found after feature engineering.")
+
+        zero_variance_data = []
+        for col in zero_variance_before:
+            zero_variance_data.append({'feature': col, 'stage': 'Before'})
+        for col in zero_variance_after:
+            zero_variance_data.append({'feature': col, 'stage': 'After'})
+        
+        if zero_variance_data:
+            zero_variance_df = pd.DataFrame(zero_variance_data)
+            zero_variance_path = os.path.join('output_data', f"zero_variance_features_{timestamp}.csv")
+            zero_variance_df.to_csv(zero_variance_path, index=False, encoding='utf-8-sig')
+            logger.info(f"Saved zero variance features to {zero_variance_path}")
+        else:
+            logger.info("No zero variance features found before or after feature engineering. Skipping CSV creation.")
+
         return engineer_dat
 
     except Exception as e:
@@ -85,36 +114,36 @@ if __name__ == "__main__":
     logger.info("Loading data completed.")
     if raw_dat is not None:
         raw_dat.to_csv(
-                        os.path.join(output_dir, f"raw_dat_{timestamp}.csv"),
-                        index=False,
-                        encoding='utf-8-sig'
+            os.path.join(output_dir, f"raw_dat_{timestamp}.csv"),
+            index=False,
+            encoding='utf-8-sig'
         )                            
         cleaned_dat = data_cleaning_fsk_v1(raw_dat, outlier_method='median')
         logger.info("Data cleaning completed.")
         if cleaned_dat is not None:
             cleaned_dat.to_csv(
-                                os.path.join(output_dir, f"cleaned_dat_{timestamp}.csv"),
-                                index=False,
-                                encoding='utf-8-sig'
+                os.path.join(output_dir, f"cleaned_dat_{timestamp}.csv"),
+                index=False,
+                encoding='utf-8-sig'
             )                             
             transformed_dat = data_transform_fsk_v1(cleaned_dat)
             logger.info("Data transformation completed.")
             if transformed_dat is not None:
                 transformed_dat.to_csv(
-                                        os.path.join(output_dir, f"transformed_dat_{timestamp}.csv"),
-                                        index=False,
-                                        encoding='utf-8-sig'
+                    os.path.join(output_dir, f"transformed_dat_{timestamp}.csv"),
+                    index=False,
+                    encoding='utf-8-sig'
                 ) 
                 engineer_dat = data_engineer_fsk_v1(transformed_dat)
                 logger.info("Feature engineering completed.")   
                 if engineer_dat is not None:
-                        logger.info(f"Raw DataFrame Shape: {engineer_dat.shape}")
-                        logger.info(f"Raw DataFrame Info:\n{engineer_dat.info()}")
-                        logger.info(f"Raw DataFrame Sample:\n{engineer_dat.sample(5).to_string()}")
-                        engineer_dat.to_csv(
-                                            os.path.join(output_dir, f"engineer_dat{timestamp}.csv"),
-                                            index=False,
-                                            encoding='utf-8-sig'
+                    logger.info(f"Engineered DataFrame Shape: {engineer_dat.shape}")
+                    logger.info(f"Engineered DataFrame Info:\n{engineer_dat.info()}")
+                    logger.info(f"Engineered DataFrame Sample:\n{engineer_dat.sample(5).to_string()}")
+                    engineer_dat.to_csv(
+                        os.path.join(output_dir, f"engineer_dat_{timestamp}.csv"),
+                        index=False,
+                        encoding='utf-8-sig'
                     ) 
                 else:
                     print("Failed to engineer features.")
