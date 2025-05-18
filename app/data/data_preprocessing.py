@@ -27,74 +27,74 @@ def data_preprocessing(engineer_dat: pd.DataFrame, outlier_method: str = 'median
             logger.error("Input Engineered DataFrame is None or empty.")
             return None, None
             
-        clean_engineer_dat = engineer_dat.copy()
+        scale_clean_engineer_dat = engineer_dat.copy()
         exclude_cols = ['ust']
-        numeric_cols = [col for col in clean_engineer_dat.columns if col not in exclude_cols and clean_engineer_dat[col].dtype in [np.float64, np.int64]]
+        numeric_cols = [col for col in scale_clean_engineer_dat.columns if col not in exclude_cols and scale_clean_engineer_dat[col].dtype in [np.float64, np.int64]]
         
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        zero_variance_cols = [col for col in numeric_cols if clean_engineer_dat[col].var() == 0]
+        zero_variance_cols = [col for col in numeric_cols if scale_clean_engineer_dat[col].var() == 0]
         if zero_variance_cols:
-            clean_engineer_dat = clean_engineer_dat.drop(columns=zero_variance_cols)
+            scale_clean_engineer_dat = scale_clean_engineer_dat.drop(columns=zero_variance_cols)
             logger.info(f"Dropped {len(zero_variance_cols)} features with zero variance: {zero_variance_cols}")
             
             zero_variance_df = pd.DataFrame(zero_variance_cols, columns=['zero_variance_feature'])
             zero_variance_path = os.path.join('output_data', f"zero_variance_features_{timestamp}.csv")
             zero_variance_df.to_csv(zero_variance_path, index=False, encoding='utf-8-sig')
             logger.info(f"Saved zero variance features to {zero_variance_path}")
-            numeric_cols = [col for col in clean_engineer_dat.columns if col not in exclude_cols and clean_engineer_dat[col].dtype in [np.float64, np.int64]]
+            numeric_cols = [col for col in scale_clean_engineer_dat.columns if col not in exclude_cols and scale_clean_engineer_dat[col].dtype in [np.float64, np.int64]]
         else:
             logger.info("No features with zero variance found.")
 
-        if len(clean_engineer_dat.columns) == 1 and 'ust' in clean_engineer_dat.columns:
+        if len(scale_clean_engineer_dat.columns) == 1 and 'ust' in scale_clean_engineer_dat.columns:
             logger.error("DataFrame contains only 'ust' column after dropping zero variance features.")
             return None, None
 
-        columns_to_drop = [col for col in clean_engineer_dat.columns if col.endswith('_sum')]
+        columns_to_drop = [col for col in scale_clean_engineer_dat.columns if col.endswith('_sum')]
         if columns_to_drop:
-            clean_engineer_dat = clean_engineer_dat.drop(columns=columns_to_drop)
+            scale_clean_engineer_dat = scale_clean_engineer_dat.drop(columns=columns_to_drop)
             logger.info(f"Dropped columns: {columns_to_drop}")
-            numeric_cols = [col for col in clean_engineer_dat.columns if col not in exclude_cols and clean_engineer_dat[col].dtype in [np.float64, np.int64]]
+            numeric_cols = [col for col in scale_clean_engineer_dat.columns if col not in exclude_cols and scale_clean_engineer_dat[col].dtype in [np.float64, np.int64]]
             
         for col in numeric_cols:
-            col_skewness = skew(clean_engineer_dat[col].dropna())
+            col_skewness = skew(scale_clean_engineer_dat[col].dropna())
             logger.info(f"Skewness of {col}: {col_skewness:.3f}")
             effective_method = outlier_method
             if abs(col_skewness) > 1: 
                 effective_method = 'median'
                 logger.info(f"Column {col} is highly skewed (|skewness| > 1). Using 'median' method for outlier handling.")
             
-            Q1 = clean_engineer_dat[col].quantile(0.25)
-            Q3 = clean_engineer_dat[col].quantile(0.75)
+            Q1 = scale_clean_engineer_dat[col].quantile(0.25)
+            Q3 = scale_clean_engineer_dat[col].quantile(0.75)
             IQR = Q3 - Q1
             lower_bound = Q1 - 1.5 * IQR
             upper_bound = Q3 + 1.5 * IQR
-            outliers = clean_engineer_dat[(clean_engineer_dat[col] < lower_bound) | (clean_engineer_dat[col] > upper_bound)][col]
+            outliers = scale_clean_engineer_dat[(scale_clean_engineer_dat[col] < lower_bound) | (scale_clean_engineer_dat[col] > upper_bound)][col]
             if not outliers.empty:
                 if effective_method == 'median':
-                    clean_engineer_dat.loc[(clean_engineer_dat[col] < lower_bound) | (clean_engineer_dat[col] > upper_bound), col] = clean_engineer_dat[col].median()
+                    scale_clean_engineer_dat.loc[(scale_clean_engineer_dat[col] < lower_bound) | (scale_clean_engineer_dat[col] > upper_bound), col] = scale_clean_engineer_dat[col].median()
                 elif effective_method == 'cap':
-                    clean_engineer_dat[col] = clean_engineer_dat[col].clip(lower=lower_bound, upper=upper_bound)
+                    scale_clean_engineer_dat[col] = scale_clean_engineer_dat[col].clip(lower=lower_bound, upper=upper_bound)
                 elif effective_method == 'remove':
-                    initial_rows = len(clean_engineer_dat)
-                    clean_engineer_dat = clean_engineer_dat[(clean_engineer_dat[col] >= lower_bound) & (clean_engineer_dat[col] <= upper_bound)]
-                    logger.info(f"Removed {initial_rows - len(clean_engineer_dat)} rows due to outliers in {col}.")
+                    initial_rows = len(scale_clean_engineer_dat)
+                    scale_clean_engineer_dat = scale_clean_engineer_dat[(scale_clean_engineer_dat[col] >= lower_bound) & (scale_clean_engineer_dat[col] <= upper_bound)]
+                    logger.info(f"Removed {initial_rows - len(scale_clean_engineer_dat)} rows due to outliers in {col}.")
                 logger.info(f"Handled {len(outliers)} outliers in {col} using {effective_method} method.")
 
-        if clean_engineer_dat.empty:
+        if scale_clean_engineer_dat.empty:
             logger.error("DataFrame is empty after outlier removal.")
             return None, None
 
         scaler = StandardScaler()
-        clean_engineer_dat[numeric_cols] = scaler.fit_transform(clean_engineer_dat[numeric_cols])
+        scale_clean_engineer_dat[numeric_cols] = scaler.fit_transform(scale_clean_engineer_dat[numeric_cols])
         logger.info("Scaled numerical features using StandardScaler.")
         
-        numeric_cols = clean_engineer_dat.select_dtypes(include=['float64', 'int64']).columns
+        numeric_cols = scale_clean_engineer_dat.select_dtypes(include=['float64', 'int64']).columns
         numeric_cols = [col for col in numeric_cols if col != 'ust']
         for col in numeric_cols:
-            clean_engineer_dat[col] = clean_engineer_dat[col].round(3)
+            scale_clean_engineer_dat[col] = scale_clean_engineer_dat[col].round(3)
         logger.info(f"Rounded numeric columns {numeric_cols} to 3 decimal places after scaling")
 
-        return clean_engineer_dat, scaler
+        return scale_clean_engineer_dat, scaler
 
     except Exception as e:
         logger.error(f"Error during preprocessing: {str(e)}")
@@ -152,17 +152,17 @@ if __name__ == "__main__":
                         index=False,
                         encoding='utf-8-sig'
                     ) 
-                    clean_engineer_dat, scaler = data_preprocessing(engineer_dat)
+                    scale_clean_engineer_dat, scaler = data_preprocessing(engineer_dat)
                     logger.info("Outlier handling completed.")
-                    if clean_engineer_dat is not None and scaler is not None:
-                        logger.info(f"Cleaned Engineered DataFrame Shape: {clean_engineer_dat.shape}")
-                        logger.info(f"Cleaned Engineered DataFrame Head:\n{clean_engineer_dat.head().to_string()}")
-                        clean_engineer_dat.to_csv(
-                            os.path.join(output_dir, f"clean_engineer_dat_{timestamp}.csv"),
+                    if scale_clean_engineer_dat is not None and scaler is not None:
+                        logger.info(f"Cleaned Engineered DataFrame Shape: {scale_clean_engineer_dat.shape}")
+                        logger.info(f"Cleaned Engineered DataFrame Head:\n{scale_clean_engineer_dat.head().to_string()}")
+                        scale_clean_engineer_dat.to_csv(
+                            os.path.join(output_dir, f"scale_clean_engineer_dat_{timestamp}.csv"),
                             index=False,
                             encoding='utf-8-sig'
                         )                    
-                        logger.info(f"Saved cleaned engineered data to {output_dir}/clean_engineer_dat_{timestamp}.csv")
+                        logger.info(f"Saved cleaned engineered data to {output_dir}/scale_clean_engineer_dat_{timestamp}.csv")
                         
                         scaler_path = os.path.join(scaler_dir, f"{final_scaler_filename}.pkl")
                         dump(scaler, scaler_path)

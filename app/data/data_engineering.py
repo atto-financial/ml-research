@@ -27,6 +27,7 @@ def data_engineering_fsk_v1(transform_dat: pd.DataFrame) -> Optional[pd.DataFram
         logger.info(f"Columns in Transformed DataFrame: {engineer_dat.columns.tolist()}")
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        
         exclude_cols = ['ust']
         numeric_cols = [col for col in engineer_dat.columns if col not in exclude_cols and engineer_dat[col].dtype in [np.float64, np.int64]]
         zero_variance_before = [col for col in numeric_cols if engineer_dat[col].var() == 0]
@@ -91,13 +92,13 @@ def data_engineering_fsk_v1(transform_dat: pd.DataFrame) -> Optional[pd.DataFram
         for col in zero_variance_after:
             zero_variance_data.append({'feature': col, 'stage': 'After'})
         
-        if zero_variance_data:
-            zero_variance_df = pd.DataFrame(zero_variance_data)
-            zero_variance_path = os.path.join('output_data', f"zero_variance_features_{timestamp}.csv")
-            zero_variance_df.to_csv(zero_variance_path, index=False, encoding='utf-8-sig')
-            logger.info(f"Saved zero variance features to {zero_variance_path}")
-        else:
-            logger.info("No zero variance features found before or after feature engineering. Skipping CSV creation.")
+        # if zero_variance_data:
+        #     zero_variance_df = pd.DataFrame(zero_variance_data)
+        #     zero_variance_path = os.path.join('output_data', f"zero_variance_features_{timestamp}.csv")
+        #     zero_variance_df.to_csv(zero_variance_path, index=False, encoding='utf-8-sig')
+        #     logger.info(f"Saved zero variance features to {zero_variance_path}")
+        # else:
+        #     logger.info("No zero variance features found before or after feature engineering")
 
         return engineer_dat
 

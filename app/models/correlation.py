@@ -21,38 +21,28 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-def compute_correlations(clean_engineer_dat: pd.DataFrame) -> Optional[pd.DataFrame]:
+def compute_correlations(scale_clean_engineer_dat: pd.DataFrame) -> Optional[pd.DataFrame]:
    
     try:
-        if clean_engineer_dat is None or clean_engineer_dat.empty:
+        if scale_clean_engineer_dat is None or scale_clean_engineer_dat.empty:
             logger.error("Input DataFrame is None or empty.")
             return None
 
         exclude_cols = ['ust'] + [f'{group}_sum' for group in ['spending', 'saving', 'paying_off', 'planning', 'debt', 'avoidance', 'worship', 'status', 'vigilance']]
-        numeric_cols = [col for col in clean_engineer_dat.columns if col not in exclude_cols and clean_engineer_dat[col].dtype in [np.float64, np.int64]]
+        numeric_cols = [col for col in scale_clean_engineer_dat.columns if col not in exclude_cols and scale_clean_engineer_dat[col].dtype in [np.float64, np.int64]]
 
         correlations = {}
         for col in numeric_cols:
-            if clean_engineer_dat[col].std() == 0:
+            if scale_clean_engineer_dat[col].std() == 0:
                 logger.warning(f"Skipping {col}: Variance is zero (all values are the same).")
                 correlations[col] = {'Pearson': np.nan, 'Spearman': np.nan}
                 continue
-            pearson_corr = clean_engineer_dat[col].corr(clean_engineer_dat['ust'], method='pearson')
-            spearman_corr = clean_engineer_dat[col].corr(clean_engineer_dat['ust'], method='spearman')
+            pearson_corr = scale_clean_engineer_dat[col].corr(scale_clean_engineer_dat['ust'], method='pearson')
+            spearman_corr = scale_clean_engineer_dat[col].corr(scale_clean_engineer_dat['ust'], method='spearman')
             correlations[col] = {'Pearson': pearson_corr, 'Spearman': spearman_corr}
 
         corr_dat = pd.DataFrame.from_dict(correlations, orient='index')
         corr_dat = corr_dat.sort_values(by='Pearson', ascending=False)
-
-        try:
-            corr_dat.to_csv(
-                os.path.join('output_data', f"correlations_with_ust_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"),
-                index=True,
-                encoding='utf-8-sig'
-            )
-            logger.info("Saved correlations to 'correlations_with_ust.csv'.")
-        except Exception as e:
-            logger.error(f"Failed to save correlations: {e}")
 
         return corr_dat
 
@@ -60,31 +50,29 @@ def compute_correlations(clean_engineer_dat: pd.DataFrame) -> Optional[pd.DataFr
         logger.error(f"Error during correlation computation: {str(e)}")
         return None
 
-logging.basicConfig(level=logging.INFO, format='%(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
 
-def visualize_correlations(corr_dat: pd.DataFrame, output_dir: str = 'plots') -> None:
+def visualize_correlations(corr_dat: pd.DataFrame, output_dir: str = 'plots', plot_prefix: str = None) -> None:
     if corr_dat is None or corr_dat.empty:
-        logger.error("Correlation DataFrame is None or empty.")
-        return
+        raise ValueError("Correlation DataFrame is None or empty.")
 
     try:
         os.makedirs(output_dir, exist_ok=True)
     except Exception as e:
-        logger.error(f"Failed to create output directory {output_dir}: {e}")
-        return
+        raise Exception(f"Failed to create output directory {output_dir}: {e}")
 
     corr_dat = corr_dat.fillna(0)
-    logger.info(f"Correlation DataFrame:\n{corr_dat.to_string()}")
 
-    
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    pearson_plot_filename = f"{plot_prefix}_pearson_correlations_{timestamp}.png" if plot_prefix else f"pearson_correlations_{timestamp}.png"
+    spearman_plot_filename = f"{plot_prefix}_spearman_correlations_{timestamp}.png" if plot_prefix else f"spearman_correlations_{timestamp}.png"
+    scatter_plot_filename = f"{plot_prefix}_pearson_vs_spearman_{timestamp}.png" if plot_prefix else f"pearson_vs_spearman_{timestamp}.png"
+
     if (corr_dat['Pearson'] >= 0).all():
-        logger.warning("All Pearson correlations are non-negative. Bar plot may show only positive side.")
         top_positive_pearson = corr_dat.head(10)
-        top_negative_pearson = pd.DataFrame(columns=corr_dat.columns) 
+        top_negative_pearson = pd.DataFrame(columns=corr_dat.columns)
     elif (corr_dat['Pearson'] <= 0).all():
-        logger.warning("All Pearson correlations are non-positive. Bar plot may show only negative side.")
-        top_positive_pearson = pd.DataFrame(columns=corr_dat.columns)  
+        top_positive_pearson = pd.DataFrame(columns=corr_dat.columns)
         top_negative_pearson = corr_dat.tail(10)
     else:
         top_positive_pearson = corr_dat[corr_dat['Pearson'] > 0].head(10)
@@ -92,19 +80,17 @@ def visualize_correlations(corr_dat: pd.DataFrame, output_dir: str = 'plots') ->
 
     top_corr = pd.concat([top_positive_pearson, top_negative_pearson])
     if top_corr.empty:
-        logger.warning("No features to plot in top_corr.")
-        return
-
-    plt.figure(figsize=(10, len(top_corr) * 0.5))  
+        raise ValueError("No features to plot in top_corr.")
+    
+    plt.figure(figsize=(10, len(top_corr) * 0.5))
     sns.barplot(x=top_corr['Pearson'], y=top_corr.index)
     plt.title('Top 10 Positive and Negative Pearson Correlations with ust')
     plt.xlabel('Pearson Correlation')
     plt.ylabel('Feature')
     plt.axvline(x=0, color='gray', linestyle='--')
     plt.tight_layout()
-    plt.savefig(f'{output_dir}/pearson_correlations_with_ust.png')
+    plt.savefig(os.path.join(output_dir, pearson_plot_filename))
     plt.close()
-    logger.info(f"Saved Pearson correlation plot to {output_dir}/pearson_correlations_with_ust.png")
 
     plt.figure(figsize=(10, len(top_corr) * 0.5))
     sns.barplot(x=top_corr['Spearman'], y=top_corr.index)
@@ -113,9 +99,8 @@ def visualize_correlations(corr_dat: pd.DataFrame, output_dir: str = 'plots') ->
     plt.ylabel('Feature')
     plt.axvline(x=0, color='gray', linestyle='--')
     plt.tight_layout()
-    plt.savefig(f'{output_dir}/spearman_correlations_with_ust.png')
+    plt.savefig(os.path.join(output_dir, spearman_plot_filename))
     plt.close()
-    logger.info(f"Saved Spearman correlation plot to {output_dir}/spearman_correlations_with_ust.png")
 
     plt.figure(figsize=(8, 6))
     sns.scatterplot(x=corr_dat['Pearson'], y=corr_dat['Spearman'])
@@ -128,9 +113,8 @@ def visualize_correlations(corr_dat: pd.DataFrame, output_dir: str = 'plots') ->
         if abs(corr_dat['Pearson'][i] - corr_dat['Spearman'][i]) > 0.1:
             plt.text(corr_dat['Pearson'][i], corr_dat['Spearman'][i], feature, fontsize=8)
     plt.tight_layout()
-    plt.savefig(f'{output_dir}/pearson_vs_spearman.png')
+    plt.savefig(os.path.join(output_dir, scatter_plot_filename))
     plt.close()
-    logger.info(f"Saved Pearson vs Spearman plot to {output_dir}/pearson_vs_spearman.png")
 
 if __name__ == "__main__":
     output_dir = "output_data"
@@ -149,22 +133,29 @@ if __name__ == "__main__":
             transformed_dat = data_transforming_fsk_v1(cleaned_dat)
             if transformed_dat is not None:
                 logger.info(f"Transformed DataFrame Shape: {transformed_dat.shape}")
-                clean_engineer_dat = data_engineering_fsk_v1(transformed_dat)
-                if clean_engineer_dat is not None:
-                    logger.info(f"Features Engineered DataFrame Shape: {clean_engineer_dat.shape}")
-                    cleaned_engineered_dat = data_preprocessing(clean_engineer_dat)
+                scale_clean_engineer_dat = data_engineering_fsk_v1(transformed_dat)
+                if scale_clean_engineer_dat is not None:
+                    logger.info(f"Features Engineered DataFrame Shape: {scale_clean_engineer_dat.shape}")
+                    cleaned_engineered_dat = data_preprocessing(scale_clean_engineer_dat)
                     if cleaned_engineered_dat is not None:
                         logger.info(f"Cleaned Engineered DataFrame Shape (After Outlier Removal): {cleaned_engineered_dat.shape}")
                         cleaned_engineered_dat.to_csv(
-                                os.path.join(output_dir, f"cleaned_clean_engineer_dat_{timestamp}.csv"),
+                                os.path.join(output_dir, f"cleaned_scale_clean_engineer_dat_{timestamp}.csv"),
                                 index=False,
                                 encoding='utf-8-sig'
                             )
-                        logger.info(f"Saved cleaned engineered data to {output_dir}/cleaned_clean_engineer_dat_{timestamp}.csv")
+                        logger.info(f"Saved cleaned engineered data to {output_dir}/cleaned_scale_clean_engineer_dat_{timestamp}.csv")
                         corr_dat = compute_correlations(cleaned_engineered_dat)
                         if corr_dat is not None:
+                            corr_dat.to_csv(
+                                                os.path.join('output_data', f"correlations_with_ust_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"),
+                                                index=True,
+                                                encoding='utf-8-sig'
+                                                )
+                            logger.info("Saved correlations to 'correlations_with_ust.csv'.")
                             logger.info("Correlations with ust (Pearson and Spearman):")
                             logger.info(f"\n{corr_dat}")
+                            
                             visualize_correlations(corr_dat)
                             logger.info("Correlation visualizations saved in 'plots' directory.")
                         else:

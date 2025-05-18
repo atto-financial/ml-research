@@ -25,16 +25,17 @@ def data_transforming_fsk_v1(clean_dat: pd.DataFrame) -> Optional[pd.DataFrame]:
         transform_dat = clean_dat.copy()
         
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        
         exclude_cols = ['ust']
         numeric_cols = [col for col in transform_dat.columns if col not in exclude_cols and transform_dat[col].dtype in [np.float64, np.int64]]
         zero_variance_cols = [col for col in numeric_cols if transform_dat[col].var() == 0]
         if zero_variance_cols:
             logger.info(f"Found {len(zero_variance_cols)} features with zero variance before mapping: {zero_variance_cols}")
             
-            zero_variance_df = pd.DataFrame(zero_variance_cols, columns=['zero_variance_feature'])
-            zero_variance_path = os.path.join('output_data', f"zero_variance_features_before_mapping_{timestamp}.csv")
-            zero_variance_df.to_csv(zero_variance_path, index=False, encoding='utf-8-sig')
-            logger.info(f"Saved zero variance features to {zero_variance_path}")
+            # zero_variance_df = pd.DataFrame(zero_variance_cols, columns=['zero_variance_feature'])
+            # zero_variance_path = os.path.join('output_data', f"zero_variance_features_before_mapping_{timestamp}.csv")
+            # zero_variance_df.to_csv(zero_variance_path, index=False, encoding='utf-8-sig')
+            # logger.info(f"Saved zero variance features to {zero_variance_path}")
         else:
             logger.info("No features with zero variance found before mapping.")
 

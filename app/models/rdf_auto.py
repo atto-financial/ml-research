@@ -181,9 +181,9 @@ def rfe_feature_selection(X: pd.DataFrame, y: pd.Series, target_col: str = 'ust'
         logger.error(f"Error during RFE feature selection: {str(e)}")
         return [], None, None
 
-def train_model(clean_engineer_dat: pd.DataFrame, selected_features: list, target_col: str = 'ust') -> Tuple[Optional[RandomForestClassifier], Optional[dict]]:
+def train_model(scale_clean_engineer_dat: pd.DataFrame, selected_features: list, target_col: str = 'ust') -> Tuple[Optional[RandomForestClassifier], Optional[dict]]:
     try:
-        if clean_engineer_dat is None or clean_engineer_dat.empty:
+        if scale_clean_engineer_dat is None or scale_clean_engineer_dat.empty:
             logger.error("Input DataFrame is None or empty.")
             return None, None
 
@@ -191,12 +191,12 @@ def train_model(clean_engineer_dat: pd.DataFrame, selected_features: list, targe
             logger.error("No features selected for training.")
             return None, None
 
-        if target_col not in clean_engineer_dat.columns:
+        if target_col not in scale_clean_engineer_dat.columns:
             logger.error(f"Target column '{target_col}' not found in DataFrame.")
             return None, None
 
-        X = clean_engineer_dat[selected_features]
-        y = clean_engineer_dat[target_col]
+        X = scale_clean_engineer_dat[selected_features]
+        y = scale_clean_engineer_dat[target_col]
 
         if y.nunique() != 2:
             logger.error(f"Target column '{target_col}' is not binary. Found {y.nunique()} unique values.")
@@ -272,9 +272,9 @@ if __name__ == "__main__":
                     logger.info(f"Features Engineered DataFrame Shape: {engineer_dat.shape}")
                     result = data_preprocessing(engineer_dat)
                     if result is not None:
-                        clean_engineer_dat, scaler = result
-                        logger.info(f"Cleaned Engineered DataFrame Shape (After Outlier Removal): {clean_engineer_dat.shape}")
-                        corr_dat = compute_correlations(clean_engineer_dat)
+                        scale_clean_engineer_dat, scaler = result
+                        logger.info(f"Cleaned Engineered DataFrame Shape (After Outlier Removal): {scale_clean_engineer_dat.shape}")
+                        corr_dat = compute_correlations(scale_clean_engineer_dat)
                         scaler_path = os.path.join(scaler_dir, f"{final_scaler_filename}.pkl")
                         dump(scaler, scaler_path)
                         logger.info(f"Saved scaler to {scaler_path}")
@@ -283,7 +283,7 @@ if __name__ == "__main__":
                             logger.info(f"\n{corr_dat}")
                             selected_features = select_top_features(corr_dat, n=10)
                             if selected_features:
-                                model, metrics = train_model(clean_engineer_dat, selected_features)
+                                model, metrics = train_model(scale_clean_engineer_dat, selected_features)
                                 if model is not None and metrics is not None:
                                     logger.info("Train random forest model complete")
                                     metrics_df = pd.DataFrame({
