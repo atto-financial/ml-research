@@ -1,8 +1,13 @@
-import logging
-import os
-import pandas as pd
-import numpy as np
+from typing import Dict
 import pickle
+import os
+from pathlib import Path
+import pandas as pd
+import logging
+from app.data.data_transforming import data_transforming_fsk_v1
+from app.data.data_engineering import data_engineering_fsk_v1
+from app.predictions.predict import load_model, make_predictions
+from sklearn.preprocessing import StandardScaler
 
 
 logging.basicConfig(
@@ -80,35 +85,27 @@ def processAnswersFeatureV2(answers):
     
 
 def processAnswersFSK(answers: Dict) -> Dict:
-    
-    from typing import Dict
-    from app.data.data_transforming import data_transforming_fsk_v1
-    from app.data.data_engineering import data_engineering_fsk_v1
-    from app.predictions.predict import load_model, make_predictions
-    
+   
     def validate_input(data: Dict, keys: list) -> None:
-        
-        missing = [key for key in keys if key not in data or not data[key]]
+        missing = [key for key in keys if key not in data or not isinstance(data[key], list) or not data[key]]
         if missing:
-            raise ValueError(f"Missing or empty input fields: {missing}")
+            raise ValueError(f"Missing or invalid input fields: {missing}")
 
-    def load_scaler(path: str):
-        
-        if not os.path.exists(path):
+    def load_scaler(path: Path) -> StandardScaler:
+        if not path.exists():
             raise FileNotFoundError(f"Scaler file not found: {path}")
         with open(path, "rb") as file:
             scaler = pickle.load(file)
-        if not hasattr(scaler, "transform"):
-            raise AttributeError("Scaler lacks 'transform' method")
+        if not isinstance(scaler, StandardScaler):
+            raise TypeError("Invalid scaler object")
         return scaler
 
     try:
-        
         validate_input(answers, ['fht', 'set', 'kmsi'])
         fht, set_, kmsi = answers['fht'], answers['set'], answers['kmsi']
+        logger.debug(f"Validated input: fht={len(fht)}, set={len(set_)}, kmsi={len(kmsi)}")
 
-        
-        all_values = list(fht) + list(set_) + list(kmsi)
+        all_values = fht + set_ + kmsi
         columns = (
             [f'fht{i+1}' for i in range(len(fht))] +
             [f'set{i+1}' for i in range(len(set_))] +
@@ -126,9 +123,7 @@ def processAnswersFSK(answers: Dict) -> Dict:
             raise ValueError("Feature engineering failed")
         logger.debug(f"Engineered data shape: {engineered_data.shape}, columns: {list(engineered_data.columns)}")
 
-        scaler_path = os.path.abspath(os.path.join(
-            os.path.dirname(__file__), '../../save_scaler/scaler_rdf50_m1.0_fsk_f1.0.pkl'
-        ))
+        scaler_path = Path(__file__).parent.parent / 'save_scaler' / 'scaler_rdf50_m1.0_fsk_f1.0.pkl'
         scaler = load_scaler(scaler_path)
 
         scaled_data = scaler.transform(engineered_data)
@@ -139,12 +134,11 @@ def processAnswersFSK(answers: Dict) -> Dict:
         predictions, probabilities, predictions_adjusted = make_predictions(model, scaled_df)
 
         results = {
-            'default_probability': float(f"{probabilities[0]:.3f}"),
+            'default_probability': round(probabilities[0], 3),
             'model_prediction': int(predictions[0]),
-            'adjust_prediction': int(predictions_adjusted[0]) 
+            'adjust_prediction': int(predictions_adjusted[0])
         }
         logger.info(f"Prediction results: {results}")
-
         return results
 
     except ValueError as ve:
