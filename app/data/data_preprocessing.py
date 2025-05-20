@@ -2,11 +2,14 @@ import logging
 import pandas as pd
 import numpy as np
 import os
+import pickle
+from sklearn.preprocessing import StandardScaler
 from joblib import dump
 from typing import Optional, Tuple
 from sklearn.preprocessing import StandardScaler
 from datetime import datetime
 from scipy.stats import skew
+from pathlib import Path
 from .data_loading import data_loading_fsk_v1
 from .data_cleaning import data_cleaning_fsk_v1
 from .data_transforming import data_transforming_fsk_v1
@@ -87,6 +90,11 @@ def data_preprocessing(engineer_dat: pd.DataFrame, outlier_method: str = 'median
         scaler = StandardScaler()
         scale_clean_engineer_dat[numeric_cols] = scaler.fit_transform(scale_clean_engineer_dat[numeric_cols])
         logger.info("Scaled numerical features using StandardScaler.")
+        
+        scaler_path = Path(__file__).resolve().parents[2] / 'save_scaler' / 'scaler_rdf50_m1.0_fsk_f1.0.pkl'
+        with open(scaler_path, "wb") as f:
+            pickle.dump(scaler, f)
+        logger.info(f"Saved fitted scaler to {scaler_path}")
         
         numeric_cols = scale_clean_engineer_dat.select_dtypes(include=['float64', 'int64']).columns
         numeric_cols = [col for col in numeric_cols if col != 'ust']

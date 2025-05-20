@@ -5,6 +5,8 @@ import os
 from joblib import dump
 from datetime import datetime
 from flask import render_template, request, jsonify
+import pickle
+from sklearn.preprocessing import StandardScaler
 
 logging.basicConfig(
     level=logging.INFO,
@@ -182,13 +184,13 @@ def configure_routes(app):
                 return jsonify({"error": "Failed to preprocess data"}), 500
     
             scaler_path = os.path.join(scaler_dir, scaler_filename)
-            save_artifact(scaler, scaler_path, "scaler")
+            # save_artifact(scaler, scaler_path, "scaler")
     
             corr_dat = compute_correlations(scale_clean_engineer_dat)
             if corr_dat is None or corr_dat.empty:
                 return jsonify({"error": "Failed to compute correlations"}), 500
     
-            # corr_path = os.path.join(output_dir, corr_filename)
+            corr_path = os.path.join(output_dir, corr_filename)
             # save_artifact(corr_dat, corr_path, "correlations")
             
             selected_features = select_top_features(corr_dat, n=10)
@@ -264,7 +266,6 @@ def configure_routes(app):
     @app.route('/fskpredict', methods=['POST'])
     def fskpredict():
         from app.features.eval import processAnswersFSK
-        
         try:
             data = request.get_json()
             if not isinstance(data, dict):

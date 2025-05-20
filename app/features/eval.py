@@ -1,13 +1,18 @@
 from typing import Dict
 import pickle
 import os
-from pathlib import Path
 import pandas as pd
+import numpy as np
 import logging
+import sklearn.preprocessing
+from pathlib import Path
 from app.data.data_transforming import data_transforming_fsk_v1
 from app.data.data_engineering import data_engineering_fsk_v1
 from app.predictions.predict import load_model, make_predictions
 from sklearn.preprocessing import StandardScaler
+
+_model = None
+_scaler = None
 
 
 logging.basicConfig(
@@ -16,6 +21,9 @@ logging.basicConfig(
     handlers=[logging.StreamHandler()]
 )
 logger = logging.getLogger(__name__)
+
+_model = None
+_scaler = None
 
 def processAnswersFeatureV1(answers):
     # cdd
@@ -82,23 +90,41 @@ def processAnswersFeatureV2(answers):
         results['feature_prediction'] = 1
         
     return results
-    
+
 
 def processAnswersFSK(answers: Dict) -> Dict:
    
-    def validate_input(data: Dict, keys: list) -> None:
-        missing = [key for key in keys if key not in data or not isinstance(data[key], list) or not data[key]]
-        if missing:
-            raise ValueError(f"Missing or invalid input fields: {missing}")
+    def load_resources(model_path: Path, scaler_path: Path) -> tuple:
+        
+        global _model, _scaler
+        if _model is None:
+            logger.info(f"Loading model: {model_path}")
+            _model = load_model(model_path)
+        if _scaler is None:
+            logger.info(f"Loading scaler: {scaler_path}")
+            if not scaler_path.exists():
+                error_msg = (
+                    f"Scaler file not found: {scaler_path}. "
+                    "Please ensure the file exists in the 'save_scaler' directory "
+                    "or set SCALER_PATH environment variable."
+                )
+                raise FileNotFoundError(error_msg)
+            with open(scaler_path, "rb") as file:
+                _scaler = pickle.load(file)
+            if not isinstance(_scaler, StandardScaler):
+                raise TypeError("Invalid scaler object")
+        return _model, _scaler
 
-    def load_scaler(path: Path) -> StandardScaler:
-        if not path.exists():
-            raise FileNotFoundError(f"Scaler file not found: {path}")
-        with open(path, "rb") as file:
-            scaler = pickle.load(file)
-        if not isinstance(scaler, StandardScaler):
-            raise TypeError("Invalid scaler object")
-        return scaler
+    def validate_input(data: Dict, keys: list) -> None:
+        expected_lengths = {'fht': 8, 'set': 2, 'kmsi': 8}  
+        missing = []
+        for key in keys:
+            if key not in data or not isinstance(data[key], list):
+                missing.append(key)
+            elif len(data[key]) != expected_lengths[key]:
+                missing.append(f"{key} (expected {expected_lengths[key]} values, got {len(data[key])})")
+        if missing:
+            raise ValueError(f"Invalid input fields: {missing}")
 
     try:
         validate_input(answers, ['fht', 'set', 'kmsi'])
@@ -122,15 +148,34 @@ def processAnswersFSK(answers: Dict) -> Dict:
         if engineered_data is None or engineered_data.empty:
             raise ValueError("Feature engineering failed")
         logger.debug(f"Engineered data shape: {engineered_data.shape}, columns: {list(engineered_data.columns)}")
+        
+        columns_to_drop = [col for col in engineered_data.columns if col.endswith('_sum', "kmsi3")]
+        if columns_to_drop:
+            engineered_data = engineered_data.drop(columns=columns_to_drop)
+            logger.info(f"Dropped columns: {columns_to_drop}")
+            engineered_data = engineered_data.astype(np.int64)
 
-        scaler_path = Path(__file__).parent.parent / 'save_scaler' / 'scaler_rdf50_m1.0_fsk_f1.0.pkl'
-        scaler = load_scaler(scaler_path)
+        scaler_path = Path(__file__).resolve().parents[2] / 'save_scaler' / 'scaler_rdf50_m1.0_fsk_f1.0.pkl'
+        logger.debug(f"Attempting to load model from: { scaler_path}")
+        
+        model_path = Path(__file__).resolve().parents[2] / 'save_models' / 'rdf50_m1.0_fsk_f1.0.pkl'
+        logger.debug(f"Attempting to load model from: { model_path}")
+        
+        with open(scaler_path, "rb") as file:
+            _scaler = pickle.load(file)
+
+            print(f"Scaler type: {type(_scaler)}")
+            print(f"Is instance of StandardScaler? {isinstance(_scaler, sklearn.preprocessing.StandardScaler)}")
+            
+            if not isinstance(_scaler, sklearn.preprocessing.StandardScaler):
+                raise TypeError("Invalid scaler object")
+        
+        model, scaler = load_resources(model_path, scaler_path) 
 
         scaled_data = scaler.transform(engineered_data)
         scaled_df = pd.DataFrame(scaled_data, columns=engineered_data.columns)
         logger.debug(f"Scaled data shape: {scaled_df.shape}, columns: {list(scaled_df.columns)}")
 
-        model = load_model("rdf50_m1.0_fsk_f1.0")
         predictions, probabilities, predictions_adjusted = make_predictions(model, scaled_df)
 
         results = {
