@@ -41,7 +41,7 @@ def data_engineering_fsk_v1(transform_dat: pd.DataFrame) -> Optional[pd.DataFram
             'saving': ['fht3', 'fht4'],
             'payoff': ['fht5', 'fht6'],
             'planning': ['fht7', 'fht8'],
-            'debt': ['set9', 'set10'],
+            'debt': ['set1', 'set2'],
             'loan': ['kmsi1', 'kmsi2'],
             'worship': ['kmsi3', 'kmsi4'],
             'extravagance': ['kmsi5', 'kmsi6'],

@@ -80,15 +80,14 @@ def rfe_feature_selection(X: pd.DataFrame, y: pd.Series, target_col: str = 'ust'
 
         logger.info(f"Starting RFE feature selection with {len(current_features)} features: {current_features}")
 
-       
         n_samples = len(y)
-        n_folds = min(5, n_samples)  
+        n_folds = min(5, n_samples)
         cv = StratifiedKFold(n_splits=n_folds, shuffle=True, random_state=42)
         logger.info(f"Using StratifiedKFold with {n_folds} folds")
 
         max_depth = 5 if n_samples <= 100 else 8
         min_samples_split = 10 if n_samples <= 100 else 5
-        n_features_to_select = max(3, len(current_features) // 2) 
+        n_features_to_select = max(3, len(current_features) // 2)
 
         model = RandomForestClassifier(
             n_estimators=50,
@@ -167,7 +166,8 @@ def rfe_feature_selection(X: pd.DataFrame, y: pd.Series, target_col: str = 'ust'
             'cross_validated_f1': cv_f1,
             'cross_validated_roc_auc': cv_roc_auc,
             'test_roc_auc': test_roc_auc,
-            'feature_importance': feature_importance.to_dict()
+            'feature_importance': feature_importance.to_dict(),
+            'best_features': selected_features
         }
 
         best_features = selected_features
@@ -179,7 +179,7 @@ def rfe_feature_selection(X: pd.DataFrame, y: pd.Series, target_col: str = 'ust'
 
     except Exception as e:
         logger.error(f"Error during RFE feature selection: {str(e)}")
-        return [], None, None
+        return [], None, {}
 
 def train_model(scale_clean_engineer_dat: pd.DataFrame, selected_features: list, target_col: str = 'ust') -> Tuple[Optional[RandomForestClassifier], Optional[dict]]:
     try:
@@ -226,9 +226,11 @@ def train_model(scale_clean_engineer_dat: pd.DataFrame, selected_features: list,
         logger.info(f"Classification Report (Test Set):\n{pd.DataFrame(best_metrics['classification_report']).to_string()}")
 
         return best_model, best_metrics
+
     except Exception as e:
         logger.error(f"Error during model training: {str(e)}")
         return None, None
+    
 
 if __name__ == "__main__":
     output_dir = "output_data"

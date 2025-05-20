@@ -37,10 +37,10 @@ def data_preprocessing(engineer_dat: pd.DataFrame, outlier_method: str = 'median
             scale_clean_engineer_dat = scale_clean_engineer_dat.drop(columns=zero_variance_cols)
             logger.info(f"Dropped {len(zero_variance_cols)} features with zero variance: {zero_variance_cols}")
             
-            zero_variance_df = pd.DataFrame(zero_variance_cols, columns=['zero_variance_feature'])
-            zero_variance_path = os.path.join('output_data', f"zero_variance_features_{timestamp}.csv")
-            zero_variance_df.to_csv(zero_variance_path, index=False, encoding='utf-8-sig')
-            logger.info(f"Saved zero variance features to {zero_variance_path}")
+            # zero_variance_df = pd.DataFrame(zero_variance_cols, columns=['zero_variance_feature'])
+            # zero_variance_path = os.path.join('output_data', f"zero_variance_features_before_data_processing{timestamp}.csv")
+            # zero_variance_df.to_csv(zero_variance_path, index=False, encoding='utf-8-sig')
+            # logger.info(f"Saved zero variance features to {zero_variance_path}")
             numeric_cols = [col for col in scale_clean_engineer_dat.columns if col not in exclude_cols and scale_clean_engineer_dat[col].dtype in [np.float64, np.int64]]
         else:
             logger.info("No features with zero variance found.")
