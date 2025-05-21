@@ -6,7 +6,6 @@ from joblib import dump
 from datetime import datetime
 from flask import render_template, request, jsonify
 import pickle
-from sklearn.preprocessing import StandardScaler
 
 logging.basicConfig(
     level=logging.INFO,
@@ -184,7 +183,8 @@ def configure_routes(app):
                 return jsonify({"error": "Failed to preprocess data"}), 500
     
             scaler_path = os.path.join(scaler_dir, scaler_filename)
-            # save_artifact(scaler, scaler_path, "scaler")
+            with open(scaler_path, "wb") as f:pickle.dump(scaler, f)
+            logger.info(f"Saved fitted scaler to {scaler_path}")
     
             corr_dat = compute_correlations(scale_clean_engineer_dat)
             if corr_dat is None or corr_dat.empty:
