@@ -17,6 +17,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+
 def data_engineering_fsk_v1(transform_dat: pd.DataFrame) -> Optional[pd.DataFrame]:
     try:
         if transform_dat is None or transform_dat.empty:

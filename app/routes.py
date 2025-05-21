@@ -1,20 +1,14 @@
 import logging
-import pandas as pd
-import numpy as np
 import os
-from joblib import dump
+import pandas as pd
+import hashlib
 from datetime import datetime
-from flask import render_template, request, jsonify
-import pickle
+from typing import Dict, List, Optional, Tuple
+from flask import request, jsonify, render_template
+from joblib import dump, load
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler()
-    ]
-)
 logger = logging.getLogger(__name__)
+
 
 def configure_routes(app):
     @app.route('/')
@@ -97,6 +91,73 @@ def configure_routes(app):
         from app.models.correlation import compute_correlations
         from app.models.rdf_auto import train_model, select_top_features
         
+        def calculate_checksum(file_path: str) -> str:
+        
+            try:
+                sha256_hash = hashlib.sha256()
+                with open(file_path, "rb") as f:
+                    for chunk in iter(lambda: f.read(4096), b""):
+                        sha256_hash.update(chunk)
+                return sha256_hash.hexdigest()
+            except Exception as e:
+                logger.error(f"Failed to calculate checksum for {file_path}: {str(e)}")
+                raise
+            
+        def save_artifact(obj: object, directory: str, filename: str, obj_type: str) -> Tuple[str, str]:
+            
+            try:
+                os.makedirs(directory, exist_ok=True)
+                file_path = os.path.join(directory, filename)
+                if isinstance(obj, pd.DataFrame):
+                    obj.to_csv(file_path, index=False, encoding='utf-8-sig')
+                    checksum = calculate_checksum(file_path)
+                else:
+                    dump(obj, file_path)  
+                    checksum = calculate_checksum(file_path)
+                logger.info(f"Saved {obj_type} to {file_path} with checksum: {checksum}")
+
+                
+                checksum_path = f"{file_path}.sha256"
+                with open(checksum_path, 'w') as f:
+                    f.write(checksum)
+                logger.info(f"Saved checksum to {checksum_path}")
+
+                return file_path, checksum
+            except Exception as e:
+                logger.error(f"Failed to save {obj_type}: {str(e)}")
+                raise
+            
+        def load_and_verify_artifact(file_path: str, expected_checksum: str) -> object:
+            
+            try:
+                current_checksum = calculate_checksum(file_path)
+                if current_checksum != expected_checksum:
+                    raise ValueError(f"Checksum mismatch for {file_path}: expected {expected_checksum}, got {current_checksum}")
+                obj = load(file_path) 
+                logger.info(f"Loaded and verified {file_path} with checksum: {current_checksum}")
+                return obj
+            except Exception as e:
+                logger.error(f"Failed to load and verify {file_path}: {str(e)}")
+                raise
+            
+        def validate_filename(filename: str, extension: str) -> str:
+            
+            sanitized = os.path.basename(filename).replace('..', '').replace('/', '').replace('\\', '')
+            if not sanitized.endswith(extension):
+                sanitized = f"{sanitized}.{extension}"
+            return sanitized
+
+        def validate_features(features: List[str], df: pd.DataFrame, name: str) -> List[str]:
+            
+            if not isinstance(features, list):
+                logger.error(f"{name} is not a list: {type(features)}")
+                return []
+            missing = [f for f in features if f not in df.columns]
+            if missing:
+                logger.error(f"{name} not found in data: {missing}")
+                return []
+            return features
+
         def features_importance(model, X: pd.DataFrame) -> pd.DataFrame:
             
             try:
@@ -113,31 +174,9 @@ def configure_routes(app):
                 logger.info("Final Feature Importance:\n%s", importance_df.to_string())
                 return importance_df
             except ValueError as e:
-                logger.error(f"Feature importance error: {str(e)}", exc_info=True)
+                logger.error(f"Feature importance error: {str(e)}")
                 return pd.DataFrame()
-    
-        def validate_features(features: list, df: pd.DataFrame, name: str) -> list:
-            
-            if not isinstance(features, list):
-                logger.error(f"{name} is not a list: {type(features)}")
-                return selected_features
-            missing = [f for f in features if f not in df.columns]
-            if missing:
-                logger.error(f"{name} not found in data: {missing}")
-                return selected_features
-            return features
-    
-        def save_artifact(obj, path: str, obj_type: str) -> None:
-            
-            try:
-                if isinstance(obj, pd.DataFrame):
-                    obj.to_csv(path, index=False, encoding='utf-8-sig')
-                else:
-                    dump(obj, path)
-                logger.info(f"Saved {obj_type} to {path}")
-            except Exception as e:
-                logger.error(f"Failed to save {obj_type}: {str(e)}", exc_info=True)
-    
+      
         try:
             
             data = request.get_json()
@@ -148,18 +187,16 @@ def configure_routes(app):
             missing_fields = [f for f in required_fields if f not in data]
             if missing_fields:
                 return jsonify({"error": f"Missing fields: {', '.join(missing_fields)}"}), 400
-
+    
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             scaler_dir = "save_scaler"
             model_dir = "save_models"
             output_dir = "output_data"
-            for dir_path in [scaler_dir, model_dir, output_dir]:
-                os.makedirs(dir_path, exist_ok=True)
     
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            model_filename = f"{data.get('model_filename', f'custom_model_{timestamp}')}.pkl"
-            corr_filename = f"{data.get('corr_filename', f'correlations_with_ust_{timestamp}')}.csv"
-            scaler_filename = f"{data.get('scaler_filename', f'custom_scaler_{timestamp}')}.pkl"
-            importance_filename = f"{data.get('feature_importance_filename', f'feature_importance_{timestamp}')}.csv"
+            model_filename = validate_filename(data.get('model_filename', f'custom_model_{timestamp}'), 'pkl')
+            corr_filename = validate_filename(data.get('corr_filename', f'correlations_with_ust_{timestamp}'), 'csv')
+            scaler_filename = validate_filename(data.get('scaler_filename', f'custom_scaler_{timestamp}'), 'pkl')
+            importance_filename = validate_filename(data.get('feature_importance_filename', f'feature_importance_{timestamp}'), 'csv')
     
             logger.info("Starting data pipeline...")
             raw_dat = data_loading_fsk_v1()
@@ -182,67 +219,77 @@ def configure_routes(app):
             if scale_clean_engineer_dat is None or scaler is None:
                 return jsonify({"error": "Failed to preprocess data"}), 500
     
-            print("SCALER", vars(scaler))
+            try:
+                scaler.mean_  
+            except AttributeError:
+                return jsonify({"error": "Scaler is not fitted properly"}), 500
     
-            scaler_path = os.path.join(scaler_dir, scaler_filename)
-            with open(scaler_path, "wb") as f:pickle.dump(scaler, f)
-            logger.info(f"Saved fitted scaler to {scaler_path}")
+            scaler_path, scaler_checksum = save_artifact(scaler, scaler_dir, scaler_filename, "scaler")
     
             corr_dat = compute_correlations(scale_clean_engineer_dat)
             if corr_dat is None or corr_dat.empty:
                 return jsonify({"error": "Failed to compute correlations"}), 500
-    
-            corr_path = os.path.join(output_dir, corr_filename)
-            # save_artifact(corr_dat, corr_path, "correlations")
             
+            # corr_path, corr_checksum = save_artifact(corr_dat, output_dir, corr_filename, "correlations")
+    
             selected_features = select_top_features(corr_dat, n=10)
-            if not selected_features or not isinstance(selected_features, list):
-                return jsonify({"error": f"Invalid selected features: {selected_features}"}), 500
+            if not selected_features:
+                return jsonify({"error": "No features selected"}), 500
     
-            missing_features = [f for f in selected_features if f not in scale_clean_engineer_dat.columns]
-            if missing_features:
-                return jsonify({"error": f"Selected features not found: {missing_features}"}), 500
-            
+            selected_features = validate_features(selected_features, scale_clean_engineer_dat, "Selected features")
+            if not selected_features:
+                return jsonify({"error": "Invalid selected features"}), 500
+    
             model, metrics = train_model(scale_clean_engineer_dat, selected_features)
             if model is None or metrics is None:
                 return jsonify({"error": "Failed to train model"}), 500
     
-            model_path = os.path.join(model_dir, model_filename)
-            save_artifact(model, model_path, "model")
+            model_path, model_checksum = save_artifact(model, model_dir, model_filename, "model")
     
-            final_features = validate_features(
-                metrics.get('best_features', selected_features),
-                scale_clean_engineer_dat,
-                "Final features"
-            )
-            logger.debug(f"Using final_features: {final_features}")
+            final_features = validate_features(metrics.get('best_features', selected_features), scale_clean_engineer_dat, "Final features")
+            if not final_features:
+                return jsonify({"error": "Invalid final features"}), 500
     
             X = scale_clean_engineer_dat[final_features]
-            logger.debug(f"X shape: {X.shape}, features: {list(X.columns)}")
             importance_df = features_importance(model, X)
-    
-            importance_path = None
+            importance_path = ""
+            importance_checksum = ""
+            plot_path = ""
             if not importance_df.empty:
-                importance_path = os.path.join(output_dir, importance_filename)
-                save_artifact(importance_df, importance_path, "feature importance")
-            else:
-                logger.warning("Feature importance calculation failed")
+                importance_path, importance_checksum = save_artifact(importance_df, output_dir, importance_filename, "feature importance")
     
-            return jsonify({
+            scaler_instructions = (
+                "To use the scaler for new data:\n"
+                "1. Verify checksum: `from hashlib import sha256; with open('{}', 'rb') as f: assert sha256(f.read()).hexdigest() == '{}'`\n"
+                "2. Load scaler: `from joblib import load; scaler = load('{}')`\n"
+                "3. Transform data: `scaled_data = scaler.transform(new_data[features])`\n"
+                "Ensure new_data contains the same features: {}".format(
+                    scaler_path, scaler_checksum, scaler_path, final_features
+                )
+            )
+    
+            response = {
                 'model': str(model),
                 'metrics': metrics,
                 'scaler_path': scaler_path,
+                'scaler_checksum': scaler_checksum,
                 'corr_path': corr_path,
+                'corr_checksum': corr_checksum,
                 'model_path': model_path,
+                'model_checksum': model_checksum,
                 'feature_importance_path': importance_path,
-                'final_features': final_features
-            }), 200
+                'feature_importance_checksum': importance_checksum,
+                'feature_importance_plot': plot_path,
+                'final_features': final_features,
+                'scaler_instructions': scaler_instructions
+            }
+            return jsonify(response), 200
     
         except ValueError as ve:
-            logger.error(f"ValueError: {str(ve)}", exc_info=True)
+            logger.error(f"ValueError: {str(ve)}")
             return jsonify({"error": f"ValueError: {str(ve)}"}), 400
         except Exception as e:
-            logger.error(f"Internal Server Error: {str(e)}", exc_info=True)
+            logger.error(f"Internal Server Error: {str(e)}")
             return jsonify({"error": f"Internal Server Error: {str(e)}"}), 500
     
     @app.route('/predict', methods=['POST'])

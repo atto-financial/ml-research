@@ -1,19 +1,15 @@
-from typing import Dict
-import pickle
+import logging
 import os
 import pandas as pd
 import numpy as np
-import logging
-import sklearn.preprocessing
-from pathlib import Path
+import hashlib
+from typing import Dict, List
+from flask import jsonify
+from sklearn.preprocessing import StandardScaler
+from joblib import load
 from app.data.data_transforming import data_transforming_fsk_v1
 from app.data.data_engineering import data_engineering_fsk_v1
-from app.predictions.predict import load_model, make_predictions
-from sklearn.preprocessing import StandardScaler
-
-_model = None
-_scaler = None
-
+from app.predictions.predict import make_predictions
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -22,8 +18,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-_model = None
-_scaler = None
 
 def processAnswersFeatureV1(answers):
     # cdd
@@ -92,8 +86,74 @@ def processAnswersFeatureV2(answers):
     return results
 
 
-def processAnswersFSK(answers: Dict) -> Dict:
+def calculate_checksum(file_path: str) -> str:
+    
     try:
+        sha256_hash = hashlib.sha256()
+        with open(file_path, "rb") as f:
+            for chunk in iter(lambda: f.read(4096), b""):
+                sha256_hash.update(chunk)
+        return sha256_hash.hexdigest()
+    except Exception as e:
+        logger.error(f"Failed to calculate checksum for {file_path}: {str(e)}")
+        raise
+
+def load_and_verify_artifact(file_path: str, checksum_path: str) -> object:
+    
+    try:
+        if not os.path.exists(file_path):
+            raise FileNotFoundError(f"Artifact file not found: {file_path}")
+        if not os.path.exists(checksum_path):
+            raise FileNotFoundError(f"Checksum file not found: {checksum_path}")
+        with open(checksum_path, 'r') as f:
+            expected_checksum = f.read().strip()
+        
+        current_checksum = calculate_checksum(file_path)
+        if current_checksum != expected_checksum:
+            raise ValueError(f"Checksum mismatch for {file_path}: expected {expected_checksum}, got {current_checksum}")
+        
+        obj = load(file_path) 
+        logger.info(f"Loaded and verified {file_path} with checksum: {current_checksum}")
+        return obj
+    except Exception as e:
+        logger.error(f"Failed to load and verify {file_path}: {str(e)}")
+        raise
+
+def validate_input(answers: Dict, required_keys: List[str]) -> None:
+    
+    missing_keys = [key for key in required_keys if key not in answers]
+    if missing_keys:
+        raise ValueError(f"Missing required keys: {', '.join(missing_keys)}")
+    for key in required_keys:
+        if not isinstance(answers[key], list):
+            raise ValueError(f"Key '{key}' must be a list, got {type(answers[key])}")
+
+def get_artifact_paths() -> Dict[str, str]:
+    
+    base_dir = os.getenv('BASE_DIR', os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
+    scaler_filename = os.getenv('SCALER_FILENAME', 'scaler_rdf50_m1.0_fsk_f1.0.pkl')
+    model_filename = os.getenv('MODEL_FILENAME', 'rdf50_m1.0_fsk_f1.0.pkl')
+    
+    paths = {
+        'scaler_path': os.path.join(base_dir, 'save_scaler', scaler_filename),
+        'scaler_checksum_path': os.path.join(base_dir, 'save_scaler', f"{scaler_filename}.sha256"),
+        'model_path': os.path.join(base_dir, 'save_models', model_filename),
+        'model_checksum_path': os.path.join(base_dir, 'save_models', f"{model_filename}.sha256")
+    }
+    
+    os.makedirs(os.path.dirname(paths['scaler_path']), exist_ok=True)
+    os.makedirs(os.path.dirname(paths['model_path']), exist_ok=True)
+    
+    for key, path in paths.items():
+        if not os.path.exists(os.path.dirname(path)):
+            raise FileNotFoundError(f"Directory for {key} does not exist: {os.path.dirname(path)}")
+    
+    return paths
+
+def processAnswersFSK(answers: Dict) -> Dict:
+   
+    try:
+        
         validate_input(answers, ['fht', 'set', 'kmsi'])
         fht, set_, kmsi = answers['fht'], answers['set'], answers['kmsi']
         logger.debug(f"Validated input: fht={len(fht)}, set={len(set_)}, kmsi={len(kmsi)}")
@@ -112,33 +172,25 @@ def processAnswersFSK(answers: Dict) -> Dict:
             raise ValueError("Data transformation failed")
 
         engineered_data = data_engineering_fsk_v1(transformed_data)
-        
         if engineered_data is None or engineered_data.empty:
             raise ValueError("Feature engineering failed")
         logger.debug(f"Engineered data shape: {engineered_data.shape}, columns: {list(engineered_data.columns)}")
-        
+
         columns_to_drop = [col for col in engineered_data.columns if col.endswith('_sum')]
         if columns_to_drop:
             engineered_data = engineered_data.drop(columns=columns_to_drop)
             logger.info(f"Dropped columns: {columns_to_drop}")
             engineered_data = engineered_data.astype(np.int64)
 
-        scaler_path = Path(__file__).resolve().parents[2] / 'save_scaler' / 'scaler_rdf50_m1.0_fsk_f1.0.pkl'
-        logger.debug(f"Attempting to load model from: { scaler_path}")
-        
-        model_path = Path(__file__).resolve().parents[2] / 'save_models' / 'rdf50_m1.0_fsk_f1.0.pkl'
-        logger.debug(f"Attempting to load model from: { model_path}")
-        
-        with open(scaler_path, "rb") as file:
-            _scaler = pickle.load(file)
+        paths = get_artifact_paths()
+        logger.debug(f"Scaler path: {paths['scaler_path']}")
+        logger.debug(f"Model path: {paths['model_path']}")
 
-            print(f"Scaler type: {type(_scaler)}")
-            print(f"Is instance of StandardScaler? {isinstance(_scaler, sklearn.preprocessing.StandardScaler)}")
-            
-            if not isinstance(_scaler, sklearn.preprocessing.StandardScaler):
-                raise TypeError("Invalid scaler object")
-        
-        model, scaler = load_resources(model_path, scaler_path) 
+        scaler = load_and_verify_artifact(paths['scaler_path'], paths['scaler_checksum_path'])
+        if not isinstance(scaler, StandardScaler):
+            raise TypeError("Invalid scaler object")
+
+        model = load_and_verify_artifact(paths['model_path'], paths['model_checksum_path'])
 
         scaled_data = scaler.transform(engineered_data)
         scaled_df = pd.DataFrame(scaled_data, columns=engineered_data.columns)
@@ -147,12 +199,17 @@ def processAnswersFSK(answers: Dict) -> Dict:
         predictions, probabilities, predictions_adjusted = make_predictions(model, scaled_df)
 
         results = {
-            'default_probability': round(probabilities[0], 3),
+            'default_probability': round(float(probabilities[0]), 3),
             'model_prediction': int(predictions[0]),
-            'adjust_prediction': int(predictions_adjusted[0])
+            'adjust_prediction': int(predictions_adjusted[0]),
+            'scaler_path': paths['scaler_path'],
+            'scaler_checksum_path': paths['scaler_checksum_path'],
+            'model_path': paths['model_path'],
+            'model_checksum_path': paths['model_checksum_path']
         }
         logger.info(f"Prediction results: {results}")
         return results
+
     except ValueError as ve:
         logger.error(f"ValueError: {str(ve)}", exc_info=True)
         return {"error": f"ValueError: {str(ve)}"}
@@ -162,35 +219,3 @@ def processAnswersFSK(answers: Dict) -> Dict:
     except Exception as e:
         logger.error(f"Internal Server Error: {str(e)}", exc_info=True)
         return {"error": f"Internal Server Error: {str(e)}"}
-
-   
-def load_resources(model_path: Path, scaler_path: Path) -> tuple:
-    global _model, _scaler
-    if _model is None:
-        logger.info(f"Loading model: {model_path}")
-        _model = load_model(model_path)
-    if _scaler is None:
-        logger.info(f"Loading scaler: {scaler_path}")
-        if not scaler_path.exists():
-            error_msg = (
-                f"Scaler file not found: {scaler_path}. "
-                "Please ensure the file exists in the 'save_scaler' directory "
-                "or set SCALER_PATH environment variable."
-            )
-            raise FileNotFoundError(error_msg)
-        with open(scaler_path, "rb") as file:
-            _scaler = pickle.load(file)
-        if not isinstance(_scaler, StandardScaler):
-            raise TypeError("Invalid scaler object")
-    return _model, _scaler
-
-def validate_input(data: Dict, keys: list) -> None:
-    expected_lengths = {'fht': 8, 'set': 2, 'kmsi': 8}  
-    missing = []
-    for key in keys:
-        if key not in data or not isinstance(data[key], list):
-            missing.append(key)
-        elif len(data[key]) != expected_lengths[key]:
-            missing.append(f"{key} (expected {expected_lengths[key]} values, got {len(data[key])})")
-    if missing:
-        raise ValueError(f"Invalid input fields: {missing}")

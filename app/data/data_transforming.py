@@ -16,6 +16,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+
 def data_transforming_fsk_v1(clean_dat: pd.DataFrame) -> Optional[pd.DataFrame]:
     try:
         if clean_dat is None or clean_dat.empty:
@@ -31,7 +32,6 @@ def data_transforming_fsk_v1(clean_dat: pd.DataFrame) -> Optional[pd.DataFrame]:
         zero_variance_cols = [col for col in numeric_cols if transform_dat[col].var() == 0]
         if zero_variance_cols:
             logger.info(f"Found {len(zero_variance_cols)} features with zero variance before mapping: {zero_variance_cols}")
-            
             # zero_variance_df = pd.DataFrame(zero_variance_cols, columns=['zero_variance_feature'])
             # zero_variance_path = os.path.join('output_data', f"zero_variance_features_before_mapping_{timestamp}.csv")
             # zero_variance_df.to_csv(zero_variance_path, index=False, encoding='utf-8-sig')

@@ -14,6 +14,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+
 def data_loading_set_v1()-> Optional[pd.DataFrame]:
     query = """
         SELECT 
