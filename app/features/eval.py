@@ -93,39 +93,6 @@ def processAnswersFeatureV2(answers):
 
 
 def processAnswersFSK(answers: Dict) -> Dict:
-   
-    def load_resources(model_path: Path, scaler_path: Path) -> tuple:
-        
-        global _model, _scaler
-        if _model is None:
-            logger.info(f"Loading model: {model_path}")
-            _model = load_model(model_path)
-        if _scaler is None:
-            logger.info(f"Loading scaler: {scaler_path}")
-            if not scaler_path.exists():
-                error_msg = (
-                    f"Scaler file not found: {scaler_path}. "
-                    "Please ensure the file exists in the 'save_scaler' directory "
-                    "or set SCALER_PATH environment variable."
-                )
-                raise FileNotFoundError(error_msg)
-            with open(scaler_path, "rb") as file:
-                _scaler = pickle.load(file)
-            if not isinstance(_scaler, StandardScaler):
-                raise TypeError("Invalid scaler object")
-        return _model, _scaler
-
-    def validate_input(data: Dict, keys: list) -> None:
-        expected_lengths = {'fht': 8, 'set': 2, 'kmsi': 8}  
-        missing = []
-        for key in keys:
-            if key not in data or not isinstance(data[key], list):
-                missing.append(key)
-            elif len(data[key]) != expected_lengths[key]:
-                missing.append(f"{key} (expected {expected_lengths[key]} values, got {len(data[key])})")
-        if missing:
-            raise ValueError(f"Invalid input fields: {missing}")
-
     try:
         validate_input(answers, ['fht', 'set', 'kmsi'])
         fht, set_, kmsi = answers['fht'], answers['set'], answers['kmsi']
@@ -145,11 +112,12 @@ def processAnswersFSK(answers: Dict) -> Dict:
             raise ValueError("Data transformation failed")
 
         engineered_data = data_engineering_fsk_v1(transformed_data)
+        
         if engineered_data is None or engineered_data.empty:
             raise ValueError("Feature engineering failed")
         logger.debug(f"Engineered data shape: {engineered_data.shape}, columns: {list(engineered_data.columns)}")
         
-        columns_to_drop = [col for col in engineered_data.columns if col.endswith('_sum', "kmsi3")]
+        columns_to_drop = [col for col in engineered_data.columns if col.endswith('_sum')]
         if columns_to_drop:
             engineered_data = engineered_data.drop(columns=columns_to_drop)
             logger.info(f"Dropped columns: {columns_to_drop}")
@@ -185,7 +153,6 @@ def processAnswersFSK(answers: Dict) -> Dict:
         }
         logger.info(f"Prediction results: {results}")
         return results
-
     except ValueError as ve:
         logger.error(f"ValueError: {str(ve)}", exc_info=True)
         return {"error": f"ValueError: {str(ve)}"}
@@ -195,3 +162,35 @@ def processAnswersFSK(answers: Dict) -> Dict:
     except Exception as e:
         logger.error(f"Internal Server Error: {str(e)}", exc_info=True)
         return {"error": f"Internal Server Error: {str(e)}"}
+
+   
+def load_resources(model_path: Path, scaler_path: Path) -> tuple:
+    global _model, _scaler
+    if _model is None:
+        logger.info(f"Loading model: {model_path}")
+        _model = load_model(model_path)
+    if _scaler is None:
+        logger.info(f"Loading scaler: {scaler_path}")
+        if not scaler_path.exists():
+            error_msg = (
+                f"Scaler file not found: {scaler_path}. "
+                "Please ensure the file exists in the 'save_scaler' directory "
+                "or set SCALER_PATH environment variable."
+            )
+            raise FileNotFoundError(error_msg)
+        with open(scaler_path, "rb") as file:
+            _scaler = pickle.load(file)
+        if not isinstance(_scaler, StandardScaler):
+            raise TypeError("Invalid scaler object")
+    return _model, _scaler
+
+def validate_input(data: Dict, keys: list) -> None:
+    expected_lengths = {'fht': 8, 'set': 2, 'kmsi': 8}  
+    missing = []
+    for key in keys:
+        if key not in data or not isinstance(data[key], list):
+            missing.append(key)
+        elif len(data[key]) != expected_lengths[key]:
+            missing.append(f"{key} (expected {expected_lengths[key]} values, got {len(data[key])})")
+    if missing:
+        raise ValueError(f"Invalid input fields: {missing}")

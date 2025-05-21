@@ -182,6 +182,8 @@ def configure_routes(app):
             if scale_clean_engineer_dat is None or scaler is None:
                 return jsonify({"error": "Failed to preprocess data"}), 500
     
+            print("SCALER", vars(scaler))
+    
             scaler_path = os.path.join(scaler_dir, scaler_filename)
             with open(scaler_path, "wb") as f:pickle.dump(scaler, f)
             logger.info(f"Saved fitted scaler to {scaler_path}")
