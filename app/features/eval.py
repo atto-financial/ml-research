@@ -7,9 +7,10 @@ from typing import Dict, List
 from flask import jsonify
 from sklearn.preprocessing import StandardScaler
 from joblib import load
-from app.data.data_transforming import data_transforming_fsk_v1
-from app.data.data_engineering import data_engineering_fsk_v1
-from app.predictions.predict import make_predictions
+from datetime import datetime
+import json
+
+
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -87,7 +88,6 @@ def processAnswersFeatureV2(answers):
 
 
 def calculate_checksum(file_path: str) -> str:
-    
     try:
         sha256_hash = hashlib.sha256()
         with open(file_path, "rb") as f:
@@ -98,20 +98,11 @@ def calculate_checksum(file_path: str) -> str:
         logger.error(f"Failed to calculate checksum for {file_path}: {str(e)}")
         raise
 
-def load_and_verify_artifact(file_path: str, checksum_path: str) -> object:
-    
+def load_and_verify_artifact(file_path: str, expected_checksum: str) -> object:
     try:
-        if not os.path.exists(file_path):
-            raise FileNotFoundError(f"Artifact file not found: {file_path}")
-        if not os.path.exists(checksum_path):
-            raise FileNotFoundError(f"Checksum file not found: {checksum_path}")
-        with open(checksum_path, 'r') as f:
-            expected_checksum = f.read().strip()
-        
         current_checksum = calculate_checksum(file_path)
         if current_checksum != expected_checksum:
             raise ValueError(f"Checksum mismatch for {file_path}: expected {expected_checksum}, got {current_checksum}")
-        
         obj = load(file_path) 
         logger.info(f"Loaded and verified {file_path} with checksum: {current_checksum}")
         return obj
@@ -120,7 +111,6 @@ def load_and_verify_artifact(file_path: str, checksum_path: str) -> object:
         raise
 
 def validate_input(answers: Dict, required_keys: List[str]) -> None:
-    
     missing_keys = [key for key in required_keys if key not in answers]
     if missing_keys:
         raise ValueError(f"Missing required keys: {', '.join(missing_keys)}")
@@ -128,32 +118,64 @@ def validate_input(answers: Dict, required_keys: List[str]) -> None:
         if not isinstance(answers[key], list):
             raise ValueError(f"Key '{key}' must be a list, got {type(answers[key])}")
 
-def get_artifact_paths() -> Dict[str, str]:
+def get_artifact_paths(model_dir: str, scaler_dir: str) -> Dict[str, str]:
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     
-    base_dir = os.getenv('BASE_DIR', os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
-    scaler_filename = os.getenv('SCALER_FILENAME', 'scaler_rdf50_m1.0_fsk_f1.0.pkl')
-    model_filename = os.getenv('MODEL_FILENAME', 'rdf50_m1.0_fsk_f1.0.pkl')
     
+    CUSTOM_MODEL_NAME = ""  
+    CUSTOM_SCALER_NAME = "" 
+
+    model_filename = f"{CUSTOM_MODEL_NAME}.pkl" if CUSTOM_MODEL_NAME else f"custom_model_{timestamp}.pkl"
+    scaler_filename = f"{CUSTOM_SCALER_NAME}.pkl" if CUSTOM_SCALER_NAME else f"custom_scaler_{timestamp}.pkl"
+
+    
+    metadata_path = os.path.join(model_dir, "model_metadata.json")
+    
+    try:
+        if os.path.exists(metadata_path):
+            with open(metadata_path, 'r') as f:
+                metadata = json.load(f)
+            model_path = metadata.get('model_path', os.path.join(model_dir, model_filename))
+            model_checksum = metadata.get('checksum', '')
+        else:
+            model_path = os.path.join(model_dir, model_filename)
+            model_checksum = ''
+    except Exception as e:
+        logger.error(f"Failed to load model metadata: {str(e)}")
+        model_path = os.path.join(model_dir, model_filename)
+        model_checksum = ''
+
     paths = {
-        'scaler_path': os.path.join(base_dir, 'save_scaler', scaler_filename),
-        'scaler_checksum_path': os.path.join(base_dir, 'save_scaler', f"{scaler_filename}.sha256"),
-        'model_path': os.path.join(base_dir, 'save_models', model_filename),
-        'model_checksum_path': os.path.join(base_dir, 'save_models', f"{model_filename}.sha256")
+        'scaler_path': os.path.join(scaler_dir, scaler_filename),
+        'scaler_checksum': '',
+        'model_path': model_path,
+        'model_checksum': model_checksum
     }
-    
+
+    scaler_checksum_path = f"{paths['scaler_path']}.sha256"
+    try:
+        if os.path.exists(scaler_checksum_path):
+            with open(scaler_checksum_path, 'r') as f:
+                paths['scaler_checksum'] = f.read().strip()
+    except Exception as e:
+        logger.error(f"Failed to read scaler checksum: {str(e)}")
+
     os.makedirs(os.path.dirname(paths['scaler_path']), exist_ok=True)
     os.makedirs(os.path.dirname(paths['model_path']), exist_ok=True)
-    
+
     for key, path in paths.items():
-        if not os.path.exists(os.path.dirname(path)):
+        if key.endswith('_path') and not os.path.exists(os.path.dirname(path)):
             raise FileNotFoundError(f"Directory for {key} does not exist: {os.path.dirname(path)}")
-    
+
     return paths
 
+
 def processAnswersFSK(answers: Dict) -> Dict:
-   
+    from app.data.data_transforming import data_transforming_fsk_v1
+    from app.data.data_engineering import data_engineering_fsk_v1
+    from app.models.rdf_auto import make_predictions
+
     try:
-        
         validate_input(answers, ['fht', 'set', 'kmsi'])
         fht, set_, kmsi = answers['fht'], answers['set'], answers['kmsi']
         logger.debug(f"Validated input: fht={len(fht)}, set={len(set_)}, kmsi={len(kmsi)}")
@@ -182,15 +204,26 @@ def processAnswersFSK(answers: Dict) -> Dict:
             logger.info(f"Dropped columns: {columns_to_drop}")
             engineered_data = engineered_data.astype(np.int64)
 
-        paths = get_artifact_paths()
+        paths = get_artifact_paths(model_dir="save_models", scaler_dir="save_scaler")
         logger.debug(f"Scaler path: {paths['scaler_path']}")
         logger.debug(f"Model path: {paths['model_path']}")
 
-        scaler = load_and_verify_artifact(paths['scaler_path'], paths['scaler_checksum_path'])
+
+        if paths['scaler_checksum']:
+            scaler = load_and_verify_artifact(paths['scaler_path'], paths['scaler_checksum'])
+        else:
+            scaler = load(paths['scaler_path'])
+            logger.info(f"No checksum for scaler, loaded without verification: {paths['scaler_path']}")
+
         if not isinstance(scaler, StandardScaler):
             raise TypeError("Invalid scaler object")
 
-        model = load_and_verify_artifact(paths['model_path'], paths['model_checksum_path'])
+        
+        if paths['model_checksum']:
+            model = load_and_verify_artifact(paths['model_path'], paths['model_checksum'])
+        else:
+            model = load(paths['model_path'])
+            logger.info(f"No checksum for model, loaded without verification: {paths['model_path']}")
 
         scaled_data = scaler.transform(engineered_data)
         scaled_df = pd.DataFrame(scaled_data, columns=engineered_data.columns)
@@ -203,9 +236,9 @@ def processAnswersFSK(answers: Dict) -> Dict:
             'model_prediction': int(predictions[0]),
             'adjust_prediction': int(predictions_adjusted[0]),
             'scaler_path': paths['scaler_path'],
-            'scaler_checksum_path': paths['scaler_checksum_path'],
+            'scaler_checksum': paths['scaler_checksum'],
             'model_path': paths['model_path'],
-            'model_checksum_path': paths['model_checksum_path']
+            'model_checksum': paths['model_checksum']
         }
         logger.info(f"Prediction results: {results}")
         return results
