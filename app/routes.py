@@ -11,7 +11,8 @@ from app.data.data_engineering import data_engineering_fsk_v1
 from app.data.data_preprocessing import data_preprocessing
 from app.models.correlation import compute_correlations
 from app.models.rdf_auto import train_model, select_top_features
-from app.utils_model import save_artifact, validate_features, features_importance, load_latest_model_metadata, save_model_metadata
+from app.utils_model import validate_data, validate_features, features_importance, load_latest_model_metadata, save_all_artifacts, ensure_paths
+
 
 logger = logging.getLogger(__name__)
 
@@ -76,15 +77,22 @@ def configure_routes(app):
     
     @app.route('/rdftrain', methods=['POST'])
     def rdftrain():
+        """Train a RandomForestClassifier and save artifacts if performance improves."""
         try:
+            # Initialize paths with timestamp
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             paths = {
-                'scaler': ("save_scaler", f"custom_scaler_{timestamp}.pkl"),
+                'scaler': ("save_scalers", f"custom_scaler_{timestamp}.pkl"),
                 'model': ("save_models", f"custom_model_{timestamp}.pkl"),
                 'output': ("output_data", f"feature_importance_{timestamp}.csv")
             }
-
-            # Data pipeline
+    
+            # Ensure directories exist
+            paths_ok, error_msg = ensure_paths(paths)
+            if not paths_ok:
+                return jsonify({"error": f"Failed to create directories: {error_msg}"}), 500
+    
+            # Run data pipeline
             logger.info("Starting data pipeline...")
             pipeline = [
                 ("load", data_loading_fsk_v1, "Failed to load data"),
@@ -95,155 +103,102 @@ def configure_routes(app):
             raw_dat = None
             for step, func, error_msg in pipeline:
                 raw_dat = func() if step == "load" else func(raw_dat)
-                if raw_dat is None or raw_dat.empty:
+                if not validate_data(raw_dat, f"Data after {step}"):
                     return jsonify({"error": error_msg}), 500
-
-            # Preprocessing
+    
+            # Preprocess data
             scale_clean_engineer_dat, scaler = data_preprocessing(raw_dat)
-            if scale_clean_engineer_dat is None or scaler is None or not hasattr(scaler, 'mean_'):
+            if not validate_data(scale_clean_engineer_dat, "Preprocessed data") or scaler is None or not hasattr(scaler, 'mean_'):
                 return jsonify({"error": "Failed to preprocess data or scaler not fitted"}), 500
-
-            # Feature selection
+    
+            # Select features
             corr_dat = compute_correlations(scale_clean_engineer_dat)
-            if corr_dat is None or corr_dat.empty:
+            if not validate_data(corr_dat, "Correlation data"):
                 return jsonify({"error": "Failed to compute correlations"}), 500
-
+    
             selected_features = validate_features(select_top_features(corr_dat, n=10), scale_clean_engineer_dat, "Selected features")
             if not selected_features:
                 return jsonify({"error": "No features selected"}), 500
-
-            # Model training
+            logger.info(f"Initial selected features: {selected_features}")
+    
+            # Train model
             model, metrics = train_model(scale_clean_engineer_dat, selected_features)
             if model is None or metrics is None:
                 return jsonify({"error": "Failed to train model"}), 500
-
-            # Use cross_validated_roc_auc
-            current_cv_roc_auc = metrics.get('cross_validated_roc_auc', 0.0)
-            logger.info(f"Current cv_roc_auc from metrics: {current_cv_roc_auc}")
-            if not isinstance(current_cv_roc_auc, (int, float)) or np.isnan(current_cv_roc_auc):
-                logger.warning(f"Invalid cross_validated_roc_auc: {current_cv_roc_auc}. Setting to 0.0")
-                current_cv_roc_auc = 0.0
-
-            # Extract other metrics
-            cv_accuracy = metrics.get('cross_validated_accuracy', 0.0)
-            cv_precision = metrics.get('cross_validated_precision', 0.0)
-            cv_recall = metrics.get('cross_validated_recall', 0.0)
-            cv_f1 = metrics.get('cross_validated_f1', 0.0)
-            logger.info(f"Metrics: accuracy={cv_accuracy}, precision={cv_precision}, recall={cv_recall}, f1={cv_f1}")
-
-            # Compare and save model
+    
+            # Get final features from RFE
+            final_features = metrics.get('best_features', selected_features)
+            if not validate_features(final_features, scale_clean_engineer_dat, "Final features"):
+                return jsonify({"error": f"Invalid final features: {final_features}"}), 500
+            logger.info(f"Final features after RFE: {final_features}")
+    
+            # Calculate feature importance
+            importance_df = features_importance(model, scale_clean_engineer_dat[final_features])
+            if importance_df.empty:
+                logger.warning("Feature importance calculation returned empty DataFrame")
+    
+            # Extract and validate metrics
+            cv_roc_auc = float(metrics.get('cross_validated_roc_auc', 0.0))
+            if np.isnan(cv_roc_auc) or cv_roc_auc < 0.0:
+                logger.warning(f"Invalid cv_roc_auc: {cv_roc_auc}. Setting to 0.0")
+                cv_roc_auc = 0.0
+    
+            metrics_summary = {
+                'cv_roc_auc': cv_roc_auc,
+                'cv_accuracy': float(metrics.get('cross_validated_accuracy', 0.0)),
+                'cv_precision': float(metrics.get('cross_validated_precision', 0.0)),
+                'cv_recall': float(metrics.get('cross_validated_recall', 0.0)),
+                'cv_f1': float(metrics.get('cross_validated_f1', 0.0))
+            }
+            logger.info(f"Metrics: {metrics_summary}")
+    
+            # Compare with latest model
             latest_metadata = load_latest_model_metadata(paths['model'][0])
             latest_cv_roc_auc = latest_metadata.get('cv_roc_auc', 0.0)
-            metadata_exists = os.path.exists(os.path.join(paths['model'][0], "model_metadata.json"))
-            logger.info(f"Metadata exists: {metadata_exists}, latest_cv_roc_auc: {latest_cv_roc_auc}")
-
-            scaler_path, scaler_checksum, model_path, model_checksum, importance_path = "", "", "", "", ""
-
-            # Save artifacts for first run or if model improves
-            if not metadata_exists or current_cv_roc_auc >= latest_cv_roc_auc:
-                logger.info(f"Saving artifacts: first run={not metadata_exists}, cv_roc_auc {current_cv_roc_auc:.3f} >= latest {latest_cv_roc_auc:.3f}")
-
-                # Ensure directories exist
-                for path_type in paths:
-                    try:
-                        os.makedirs(paths[path_type][0], exist_ok=True)
-                        logger.info(f"Created directory: {paths[path_type][0]}")
-                    except Exception as e:
-                        logger.error(f"Failed to create directory {paths[path_type][0]}: {str(e)}")
-                        return jsonify({"error": f"Failed to create directory {paths[path_type][0]}: {str(e)}"}), 500
-
-                # Save scaler
-                try:
-                    scaler_path, scaler_checksum = save_artifact(scaler, *paths['scaler'], "scaler")
-                    logger.info(f"Scaler saved at {scaler_path} with checksum {scaler_checksum}")
-                except Exception as e:
-                    logger.error(f"Failed to save scaler: {str(e)}")
-                    return jsonify({"error": f"Failed to save scaler: {str(e)}"}), 500
-
-                # Save model
-                try:
-                    model_path, model_checksum = save_artifact(model, *paths['model'], "model")
-                    logger.info(f"Model saved at {model_path} with checksum {model_checksum}")
-                except Exception as e:
-                    logger.error(f"Failed to save model: {str(e)}")
-                    return jsonify({"error": f"Failed to save model: {str(e)}"}), 500
-
-                # Save feature importance
-                best_features = metrics.get('best_features', selected_features)
-                if not validate_features(best_features, scale_clean_engineer_dat, "Best features"):
-                    return jsonify({"error": f"Best features not found: {best_features}"}), 500
-
-                importance_df = features_importance(model, scale_clean_engineer_dat[best_features])
-                if not importance_df.empty:
-                    try:
-                        importance_path, importance_checksum = save_artifact(importance_df, *paths['output'], "feature_importance")
-                        logger.info(f"Feature importance saved at {importance_path} with checksum {importance_checksum}")
-                    except Exception as e:
-                        logger.error(f"Failed to save feature importance: {str(e)}")
-                        importance_path = ""
-                        importance_checksum = ""
-                else:
-                    logger.warning("Feature importance is empty")
-                    importance_path = ""
-                    importance_checksum = ""
-
-                # Save model metadata
-                try:
-                    save_model_metadata(
-                        paths['model'][0], 
-                        current_cv_roc_auc, 
-                        model_path, 
-                        model_checksum, 
-                        scaler_path, 
-                        scaler_checksum, 
-                        importance_df, 
-                        {
-                            'cv_accuracy': cv_accuracy,
-                            'cv_precision': cv_precision,
-                            'cv_recall': cv_recall,
-                            'cv_f1': cv_f1,
-                            'final_features': best_features
-                        },
-                        filename=f"model_metadata_{timestamp}.json"  # เปลี่ยนชื่อไฟล์
-                    )
-                    logger.info("Metadata saved successfully")
-                except Exception as e:
-                    logger.error(f"Failed to save metadata: {str(e)}")
-                    return jsonify({"error": f"Failed to save metadata: {str(e)}"}), 500
-                else:
-                    logger.info(f"Skipping save: cv_roc_auc {current_cv_roc_auc:.3f} < latest {latest_cv_roc_auc:.3f}")
-
-            # Scaler instructions
+            metadata_exists = bool(latest_metadata.get('model_path'))
+            logger.info(f"Metadata exists: {metadata_exists}, latest_cv_roc_auc: {latest_cv_roc_auc:.3f}")
+    
+            # Save artifacts if first run or model improves
+            artifact_info = {
+                'scaler_path': '', 'scaler_checksum': '',
+                'model_path': '', 'model_checksum': '',
+                'importance_path': '', 'importance_checksum': ''
+            }
+            if not metadata_exists or cv_roc_auc >= latest_cv_roc_auc:
+                logger.info(f"Saving artifacts: first run={not metadata_exists}, cv_roc_auc {cv_roc_auc:.3f} >= latest {latest_cv_roc_auc:.3f}")
+                artifact_info = save_all_artifacts(scaler, model, importance_df, final_features, metrics, paths, timestamp)
+                if artifact_info is None:
+                    return jsonify({"error": "Failed to save artifacts"}), 500
+    
+            # Prepare scaler instructions
             scaler_instructions = (
                 f"To use the scaler:\n"
-                f"1. Verify checksum: `from hashlib import sha256; with open('{scaler_path}', 'rb') as f: assert sha256(f.read()).hexdigest() == '{scaler_checksum}'`\n"
-                f"2. Load scaler: `from joblib import load; scaler = load('{scaler_path}')`\n"
-                f"3. Transform data: `scaled_data = scaler.transform(new_data[features])`\n"
-                f"Ensure new_data contains: {metrics.get('best_features', selected_features)}"
-            ) if scaler_path else "No scaler saved (cv_roc_auc not improved or invalid)."
-
-            return jsonify({
+                f"1. Verify checksum: `from hashlib import sha256; with open('{artifact_info['scaler_path']}', 'rb') as f: assert sha256(f.read()).hexdigest() == '{artifact_info['scaler_checksum']}'`\n"
+                f"2. Load scaler: `from joblib import load; scaler = load('{artifact_info['scaler_path']}')`\n"
+                f"3. Transform data: `scaled_data = scaler.transform(new_data[final_features])`\n"
+                f"Ensure new_data contains: {final_features}"
+            ) if artifact_info['scaler_path'] else "No scaler saved (cv_roc_auc not improved)."
+    
+            # Prepare response
+            response = {
                 'model': str(model),
-                'metrics': metrics,
-                'scaler_path': scaler_path,
-                'scaler_checksum': scaler_checksum,
-                'model_path': model_path,
-                'model_checksum': model_checksum,
-                'feature_importance_path': importance_path,
-                'feature_importance': importance_df.to_dict('records') if not importance_df.empty else [],
-                'final_features': metrics.get('best_features', selected_features),
+                'metrics': {
+                    **metrics_summary,
+                    'classification_report': metrics.get('classification_report', {})
+                },
+                'final_features': final_features,
+                'artifacts': artifact_info,
                 'scaler_instructions': scaler_instructions,
-                'cv_roc_auc': current_cv_roc_auc,
-                'latest_cv_roc_auc': latest_cv_roc_auc,
-                'cv_accuracy': cv_accuracy,
-                'cv_precision': cv_precision,
-                'cv_recall': cv_recall,
-                'cv_f1': cv_f1
-            }), 200
-
+                'latest_cv_roc_auc': latest_cv_roc_auc
+            }
+            return jsonify(response), 200
+    
         except ValueError as ve:
             logger.error(f"ValueError in rdftrain: {str(ve)}")
             return jsonify({"error": f"ValueError: {str(ve)}"}), 400
+        except (OSError, PermissionError) as e:
+            logger.error(f"System Error in rdftrain: {str(e)}")
+            return jsonify({"error": f"System Error: {str(e)}"}), 500
         except Exception as e:
             logger.error(f"Internal Server Error in rdftrain: {str(e)}")
             return jsonify({"error": f"Internal Server Error: {str(e)}"}), 500
