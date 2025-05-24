@@ -61,7 +61,7 @@ def features_importance(model, X, y=None) -> pd.DataFrame:
     try:
         feature_importance = pd.DataFrame({
             'feature': X.columns,
-            'importance': model.feature_importances_
+            'importance': model.feature_importances
         }).sort_values('importance', ascending=False)
         logger.info("Feature Importance calculated successfully.")
         logger.info(f"\n{feature_importance.to_string()}")
