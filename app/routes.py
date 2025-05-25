@@ -12,7 +12,6 @@ from app.models.correlation import compute_correlations
 from app.models.rdf_auto import train_model, select_top_features
 from app.utils_model import ensure_paths, load_latest_model_metadata, save_all_artifacts, features_importance, validate_data, validate_features, setup_paths
 from app.predictions.ans_transformimg import set_answers_v1, set_answers_v2, fsk_answers_v1
-from app.predictions.ans_predictions import predict_answers
 from typing import Dict, Tuple, List, Optional
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestClassifier
@@ -27,32 +26,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-def data_loading_fsk_v1() -> pd.DataFrame:
-    raise NotImplementedError("Implement data_loading_fsk_v1")
-
-def data_cleaning_fsk_v1(df: pd.DataFrame) -> pd.DataFrame:
-    raise NotImplementedError("Implement data_cleaning_fsk_v1")
-
-def data_transforming_fsk_v1(df: pd.DataFrame) -> pd.DataFrame:
-    raise NotImplementedError("Implement data_transforming_fsk_v1")
-
-def data_engineering_fsk_v1(df: pd.DataFrame) -> pd.DataFrame:
-    raise NotImplementedError("Implement data_engineering_fsk_v1")
-
-def data_preprocessing(df: pd.DataFrame) -> Tuple[pd.DataFrame, StandardScaler]:
-    raise NotImplementedError("Implement data_preprocessing")
-
-def compute_correlations(df: pd.DataFrame) -> pd.DataFrame:
-    raise NotImplementedError("Implement compute_correlations")
-
-def select_top_features(corr_dat: pd.DataFrame, n: int) -> List[str]:
-    raise NotImplementedError("Implement select_top_features")
-
-def train_model(df: pd.DataFrame, features: List[str]) -> Tuple[RandomForestClassifier, Dict]:
-    raise NotImplementedError("Implement train_model")
 
 def run_data_pipeline() -> Optional[pd.DataFrame]:
-    """Run data processing pipeline."""
+    
     pipeline = [
         ("load", data_loading_fsk_v1, "Failed to load data"),
         ("clean", data_cleaning_fsk_v1, "Failed to clean data"),

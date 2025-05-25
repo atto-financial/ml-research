@@ -81,6 +81,9 @@ def data_loading_fsk_v1() -> Optional[pd.DataFrame]:
         conn = get_db_connection() 
         raw_dat = pd.read_sql(query, conn)
         logger.info(f"Load raw data completed")
+
+        raw_dat['ust'] = raw_dat['ust'].replace([np.inf, -np.inf], np.nan)  
+        raw_dat['ust'] = raw_dat['ust'].fillna(0).astype(np.int64)
         
         if 'ubl' in raw_dat.columns and 'ust' in raw_dat.columns:
             raw_dat.loc[(raw_dat['ubl'] == 1) & (raw_dat['ust'].isna()), 'ust'] = np.int64(1)
