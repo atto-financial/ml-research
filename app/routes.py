@@ -20,6 +20,11 @@ import sklearn
 import joblib
 
 
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[logging.StreamHandler()]
+)
 logger = logging.getLogger(__name__)
 
 def data_loading_fsk_v1() -> pd.DataFrame:
@@ -204,7 +209,6 @@ def configure_routes(app):
             result['application_label'] = application_label
             logger.info(f"Prediction successful for application_label: {application_label}")
             return jsonify(result), status
-
         except Exception as e:
             logger.error(f"Error in /predict: {str(e)}", exc_info=True)
             return jsonify({"error": f"Internal Server Error: {str(e)}"}), 500
