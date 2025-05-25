@@ -36,8 +36,8 @@ def set_answers_v1(data):
     cus_ans_data = pd.DataFrame([answers], columns=[f'cdd{i+9}' for i in range(len(answers))])
     from app.predictions.ans_predictions import load_model
     model = load_model("rdf50_m1.2_cdd_f1.0")
-    from app.predictions.ans_predictions import prediction_function
-    predictions, probabilities, predictions_adjusted = prediction_function(model, cus_ans_data)
+    from app.predictions.ans_predictions import make_predictions
+    predictions, probabilities, predictions_adjusted = make_predictions(model, cus_ans_data)
     results = {
         'model_prediction': int(predictions[0]),
         'default_probability': float(f"{probabilities[0]:.3f}"),
@@ -57,8 +57,8 @@ def set_answers_v2(answers):
     cus_ans_data = pd.DataFrame([cdd], columns=[f'cdd{i+9}' for i in range(len(cdd))])
     from app.predictions.ans_predictions import load_model
     model = load_model("rdf50_m1.2_cdd_f1.0")
-    from app.predictions.ans_predictions import prediction_function
-    predictions, probabilities, predictions_adjusted = prediction_function(model, cus_ans_data)
+    from app.predictions.ans_predictions import make_predictions
+    predictions, probabilities, predictions_adjusted = make_predictions(model, cus_ans_data)
     results = {
         'default_probability': float(f"{probabilities[0]:.3f}"),
         'model_prediction': int(predictions[0]),
@@ -92,12 +92,16 @@ def fsk_answers_v1(answers: Dict, model_path: str = None, scaler_path: str = Non
             raise ValueError("Feature engineering failed")
         logger.debug(f"Engineered data shape: {cus_engineered_data.shape}, columns: {list(cus_engineered_data.columns)}")
 
+        non_numeric_cols = cus_engineered_data.select_dtypes(exclude=[np.number]).columns
+        if non_numeric_cols.any():
+            logger.error(f"Non-numeric columns in cus_engineered_data: {list(non_numeric_cols)}")
+            raise ValueError(f"Non-numeric columns found: {list(non_numeric_cols)}")
+
         columns_to_drop = [col for col in cus_engineered_data.columns if col.endswith('_sum')]
         if columns_to_drop:
             logger.info(f"Dropping columns: {columns_to_drop}")
             cus_engineered_data = cus_engineered_data.drop(columns=columns_to_drop)
         logger.debug(f"Final engineered data shape: {cus_engineered_data.shape}, columns: {list(cus_engineered_data.columns)}")
-
 
         paths = get_artifact_paths(model_dir="save_models", model_path=model_path, scaler_path=scaler_path)
         model = load_and_verify_artifact(paths['model_path'], paths['model_checksum']) if paths['model_checksum'] else load(paths['model_path'])
