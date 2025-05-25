@@ -11,7 +11,8 @@ from app.data.data_preprocessing import data_preprocessing
 from app.models.correlation import compute_correlations
 from app.models.rdf_auto import train_model, select_top_features
 from app.utils_model import ensure_paths, load_latest_model_metadata, save_all_artifacts, features_importance, validate_data, validate_features, setup_paths
-from app.predictions.eval import set_answers_v1, set_answers_v2, fsk_answers_v1
+from app.predictions.ans_transformimg import set_answers_v1, set_answers_v2, fsk_answers_v1
+from app.predictions.ans_predictions import predict_answers
 from typing import Dict, Tuple, List, Optional
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestClassifier
@@ -122,8 +123,8 @@ def get_scaler_instructions(artifact_info: Dict, final_features: List[str], pack
         f"   pip install scikit-learn=={package_versions['sklearn']} joblib=={package_versions['joblib']}\n"
         f"2. Load scaler: `from joblib import load; scaler = load('{artifact_info['scaler_path']}')`\n"
         f"3. Verify checksum: `from your_module import calculate_checksum; assert calculate_checksum('{artifact_info['scaler_path']}') == '{artifact_info['scaler_checksum']}'`\n"
-        f"4. Transform data: `scaled_data = scaler.transform(new_data[{final_features}])`\n"
-        f"Ensure new_data contains columns: {final_features}\n"
+        f"4. Transform data: `scaled_data = scaler.transform(cus_ans_data[{final_features}])`\n"
+        f"Ensure cus_ans_data contains columns: {final_features}\n"
         f"Note: Scaler was trained with scikit-learn {package_versions['sklearn']} and joblib {package_versions['joblib']}."
     )
 
@@ -135,21 +136,17 @@ def configure_routes(app):
 
     @app.route('/eval', methods=['POST'])
     def evaluate():
-    
         try:
-            
             request_body = request.get_json()
             if not request_body:
                 logger.error("No JSON data provided in request")
                 return jsonify({"error": "No JSON data provided"}), 400
 
-            
             app_label = request_body.get("application_label")
             if not app_label:
                 logger.error(f"Missing application_label in request: {request_body}")
                 return jsonify({"msg": "application_label is required"}), 400
 
-            
             answers = request_body.get("answers")
             if not answers or not isinstance(answers, dict):
                 logger.error(f"Invalid or missing answers in request: {request_body}")
@@ -169,38 +166,47 @@ def configure_routes(app):
                 return jsonify(results), 200
 
             elif app_label == "rdf50_m1.0_fsk_f1.0":
-
                 results, status = fsk_answers_v1(answers, model_path=model_path, scaler_path=scaler_path)
                 results['application_label'] = app_label
                 logger.info(f"Processed {app_label}: {results}")
-                return jsonify(results), status, 200
-
-            else:
-                logger.warning(f"Unsupported application_label: {app_label}")
-                return jsonify({"msg": f"Unsupported application_label: {app_label}"}), 400
-
-        except Exception as e:
-            logger.error(f"Error in /predict: {str(e)}")
-            return jsonify({"error": f"Internal Server Error: {str(e)}"}), 500 
-        
-        
-    @app.route('/fskpredict', methods=['POST'])
-    def fskpredict():
-        try:
-                data = request.get_json()
-                if not data:
-                    return jsonify({"error": "No JSON data provided"}), 400
-
-                application_label = data.get('application_label', '')
-                answers = data.get('answers', {})
-                model_path = data.get('model_path', None)
-                scaler_path = data.get('scaler_path', None)
-
-                result, status = fsk_answers_v1(answers, model_path=model_path, scaler_path=scaler_path)
-                result['application_label'] = application_label
-                return jsonify(result), status
+                return jsonify(results), status
         except Exception as e:
             logger.error(f"Error in /eval: {str(e)}")
+            return jsonify({"error": f"Internal Server Error: {str(e)}"}), 500
+        
+        
+    @app.route('/predict', methods=['POST'])
+    def predict():
+        try:
+            data = request.get_json()
+            if not data:
+                logger.error("No JSON data provided in request")
+                return jsonify({"error": "No JSON data provided"}), 400
+
+            application_label = data.get('application_label', '')
+            answers = data.get('answers', {})
+            model_path = data.get('model_path', None)
+            scaler_path = data.get('scaler_path', None)
+
+            if not isinstance(answers, dict):
+                logger.error(f"Invalid answers format: {type(answers)}")
+                return jsonify({"error": "Answers must be a dictionary"}), 400
+            if not answers:
+                logger.error("Answers dictionary is empty")
+                return jsonify({"error": "Answers dictionary is empty"}), 400
+
+            if application_label == "rdf50_m1.0_fsk_f1.0":
+                result, status = fsk_answers_v1(answers, model_path=model_path, scaler_path=scaler_path)
+            else:
+                logger.error(f"Unsupported application_label: {application_label}")
+                return jsonify({"error": f"Unsupported application_label: {application_label}"}), 400
+
+            result['application_label'] = application_label
+            logger.info(f"Prediction successful for application_label: {application_label}")
+            return jsonify(result), status
+
+        except Exception as e:
+            logger.error(f"Error in /predict: {str(e)}", exc_info=True)
             return jsonify({"error": f"Internal Server Error: {str(e)}"}), 500
     
     @app.route('/rdftrain', methods=['POST'])

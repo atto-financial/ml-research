@@ -332,18 +332,16 @@ def save_all_artifacts(scaler: Any, model: RandomForestClassifier, importance_df
 def check_scaler_type(scaler_path: str, model_dir: str = "save_models") -> Dict:
     
     try:
-        # Get artifact paths for checksum
+        
         paths = get_artifact_paths(model_dir=model_dir, scaler_path=scaler_path)
         scaler_checksum = paths.get('scaler_checksum', None)
 
-        # Load and verify scaler
         scaler = load_and_verify_artifact(
             file_path=scaler_path,
             expected_checksum=scaler_checksum,
             expected_type=StandardScaler
         )
 
-        # Prepare result
         result = {
             'status': 'success',
             'scaler_type': str(type(scaler)),
