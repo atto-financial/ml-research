@@ -19,7 +19,6 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-
 def set_answers_v1(data):
     answers = []
     for i in range(len(data)):
@@ -101,10 +100,10 @@ def fsk_answers_v1(answers: Dict, model_path: str = None, scaler_path: str = Non
             logger.info(f"Dropping columns: {columns_to_drop}")
             engineered_data = engineered_data.drop(columns=columns_to_drop)
             engineered_data = engineered_data.astype(np.int64)
-
-        # Predict using predict.py
-        results, status_code = predict_fsk_answers(engineered_data, model_path, scaler_path)
-        return results, status_code
+        else:
+            logger.info("No sum columns to drop")
+        logger.debug(f"Final engineered data shape: {engineered_data.shape}, columns: {list(engineered_data.columns)}")
+        return engineered_data
 
     except ValueError as ve:
         logger.error(f"ValueError: {str(ve)}")

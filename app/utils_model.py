@@ -7,11 +7,22 @@ import numpy as np
 from typing import Tuple, List, Dict, Any, Optional
 from joblib import dump, load
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.preprocessing import StandardScaler
+import sklearn
+import joblib
 
 logger = logging.getLogger(__name__)
 
+def setup_paths(timestamp: str) -> Dict[str, Tuple[str, str]]:
+   
+    return {
+        'scaler': ("save_scalers", f"custom_scaler_{timestamp}.pkl"),
+        'model': ("save_models", f"custom_model_{timestamp}.pkl"),
+        'output': ("output_data", f"feature_importance_{timestamp}.csv")
+    }
+
 def calculate_checksum(file_path: str) -> str:
-    """Calculate SHA256 checksum of a file."""
+   
     try:
         sha256_hash = hashlib.sha256()
         with open(file_path, "rb") as f:
@@ -24,23 +35,35 @@ def calculate_checksum(file_path: str) -> str:
         logger.error(f"Failed to calculate checksum for {file_path}: {str(e)}")
         raise
 
-def save_artifact(obj: Any, directory: str, filename: str, obj_type: str) -> Tuple[str, str]:
-    """Save an object to disk and return its path and checksum."""
+def validate_data(df: Optional[pd.DataFrame], name: str, min_rows: int = 1, min_cols: int = 1) -> bool:
+    
     try:
-        file_path = os.path.join(directory, filename)
-        if isinstance(obj, pd.DataFrame):
-            obj.to_csv(file_path, index=False, encoding='utf-8-sig')
-        else:
-            dump(obj, file_path)
-        checksum = calculate_checksum(file_path)
-        logger.info(f"Saved {obj_type} to {file_path} with checksum: {checksum}")
-        return file_path, checksum
-    except (OSError, PermissionError) as e:
-        logger.error(f"Failed to save {obj_type} to {file_path}: {str(e)}")
-        raise
+        if df is None:
+            logger.error(f"{name} is None")
+            return False
+        if not isinstance(df, pd.DataFrame):
+            logger.error(f"{name} is not a DataFrame: {type(df)}")
+            return False
+        if df.empty:
+            logger.error(f"{name} is empty")
+            return False
+        if len(df) < min_rows:
+            logger.error(f"{name} has too few rows: {len(df)} < {min_rows}")
+            return False
+        if len(df.columns) < min_cols:
+            logger.error(f"{name} has too few columns: {len(df.columns)} < {min_cols}")
+            return False
+        if df.isna().all().all():
+            logger.error(f"{name} contains only NaN values")
+            return False
+        logger.debug(f"Validated {name}: {len(df)} rows, {len(df.columns)} columns")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to validate {name}: {str(e)}")
+        return False
 
 def validate_features(features: List[str], df: pd.DataFrame, name: str) -> List[str]:
-    """Validate that a list of features exists in a DataFrame."""
+    
     try:
         if not isinstance(features, list):
             logger.error(f"{name} is not a list: {type(features)}")
@@ -56,7 +79,7 @@ def validate_features(features: List[str], df: pd.DataFrame, name: str) -> List[
         return []
 
 def features_importance(model: Any, X: pd.DataFrame) -> pd.DataFrame:
-    """Calculate feature importance for a RandomForestClassifier."""
+   
     try:
         if not isinstance(model, RandomForestClassifier):
             logger.error(f"Model is not a RandomForestClassifier: {type(model)}")
@@ -77,15 +100,39 @@ def features_importance(model: Any, X: pd.DataFrame) -> pd.DataFrame:
         logger.error(f"Feature importance calculation failed: {str(e)}")
         return pd.DataFrame()
 
-def load_and_verify_artifact(file_path: str, expected_checksum: str) -> Any:
-    """Load an artifact and verify its checksum."""
+def save_artifact(obj: Any, directory: str, filename: str, obj_type: str) -> Tuple[str, str]:
+   
+    try:
+        os.makedirs(directory, exist_ok=True)
+        file_path = os.path.join(directory, filename)
+        
+        if isinstance(obj, pd.DataFrame):
+            obj.to_csv(file_path, index=False, encoding='utf-8-sig')
+        elif isinstance(obj, (StandardScaler, RandomForestClassifier)):
+            dump(obj, file_path)
+        else:
+            raise ValueError(f"Unsupported object type for saving: {type(obj)}")
+        
+        checksum = calculate_checksum(file_path)
+        logger.info(f"Saved {obj_type} to {file_path} with checksum: {checksum}")
+        return file_path, checksum
+    except (OSError, PermissionError, ValueError) as e:
+        logger.error(f"Failed to save {obj_type} to {file_path}: {str(e)}")
+        raise
+
+def load_and_verify_artifact(file_path: str, expected_checksum: str, expected_type: type = None) -> Any:
+    
     try:
         if not os.path.exists(file_path):
             raise FileNotFoundError(f"Artifact file not found: {file_path}")
         current_checksum = calculate_checksum(file_path)
         if expected_checksum and current_checksum != expected_checksum:
             raise ValueError(f"Checksum mismatch for {file_path}: expected {expected_checksum}, got {current_checksum}")
+        
         obj = load(file_path)
+        if expected_type and not isinstance(obj, expected_type):
+            raise ValueError(f"Loaded object is not of expected type {expected_type}: got {type(obj)}")
+        
         logger.info(f"Loaded and verified {file_path} with checksum: {current_checksum}")
         return obj
     except (FileNotFoundError, ValueError, PermissionError) as e:
@@ -93,9 +140,16 @@ def load_and_verify_artifact(file_path: str, expected_checksum: str) -> Any:
         raise
 
 def save_model_metadata(model_dir: str, metadata: Dict, filename: str = "model_metadata.json") -> None:
-    """Save model metadata to a JSON file."""
+    
     metadata_path = os.path.join(model_dir, filename)
     try:
+        metadata['package_versions'] = {
+            'sklearn': sklearn.__version__,
+            'joblib': joblib.__version__,
+            'pandas': pd.__version__,
+            'numpy': np.__version__
+        }
+        
         for key in ['model_path', 'scaler_path', 'feature_importance_path']:
             path = metadata.get(key, '')
             checksum = metadata.get(key.replace('_path', '_checksum'), '')
@@ -106,24 +160,27 @@ def save_model_metadata(model_dir: str, metadata: Dict, filename: str = "model_m
             if checksum and len(checksum) != 64:
                 logger.warning(f"Invalid checksum for {key}: {checksum}")
                 metadata[key.replace('_path', '_checksum')] = ''
+        
         for metric in ['cv_roc_auc', 'cv_accuracy', 'cv_precision', 'cv_recall', 'cv_f1']:
             value = metadata.get(metric, 0.0)
             if not isinstance(value, (int, float)) or np.isnan(value) or value < 0.0:
                 logger.warning(f"Invalid {metric}: {value}. Setting to 0.0")
                 metadata[metric] = 0.0
+        
         if not isinstance(metadata.get('final_features', []), list):
             logger.warning(f"Invalid final_features: {metadata['final_features']}. Setting to []")
             metadata['final_features'] = []
+        
         os.makedirs(model_dir, exist_ok=True)
-        with open(metadata_path, 'w') as f:
-            json.dump(metadata, f, indent=4)
+        with open(metadata_path, 'w', encoding='utf-8') as f:
+            json.dump(metadata, f, indent=4, ensure_ascii=False)
         logger.info(f"Saved metadata to {metadata_path}")
     except (OSError, PermissionError) as e:
         logger.error(f"Failed to save metadata to {metadata_path}: {str(e)}")
         raise
 
 def load_latest_model_metadata(model_dir: str) -> Dict:
-    """Load the latest model metadata from model_metadata.json."""
+    
     metadata_path = os.path.join(model_dir, "model_metadata.json")
     default_metadata = {
         'cv_roc_auc': 0.0,
@@ -139,7 +196,8 @@ def load_latest_model_metadata(model_dir: str) -> Dict:
         'cv_recall': 0.0,
         'cv_f1': 0.0,
         'final_features': [],
-        'timestamp': ''
+        'timestamp': '',
+        'package_versions': {}
     }
     try:
         if not os.path.exists(metadata_path):
@@ -164,7 +222,7 @@ def load_latest_model_metadata(model_dir: str) -> Dict:
         return default_metadata
 
 def get_artifact_paths(model_dir: str, model_path: str = None, scaler_path: str = None) -> Dict:
-    """Retrieve artifact paths and checksums from metadata."""
+    
     default_paths = {
         'scaler_path': '',
         'scaler_checksum': '',
@@ -211,15 +269,8 @@ def get_artifact_paths(model_dir: str, model_path: str = None, scaler_path: str 
         logger.error(f"Failed to retrieve artifact paths from {model_dir}: {str(e)}")
         return default_paths
 
-def validate_data(df: Optional[pd.DataFrame], name: str) -> bool:
-    """Validate that DataFrame is not None or empty."""
-    if df is None or df.empty:
-        logger.error(f"{name} is None  None or empty.")
-        return False
-    return True
-
 def ensure_paths(paths: Dict[str, Tuple[str, str]]) -> Tuple[bool, str]:
-    """Ensure all directories exist."""
+   
     for path_type, (dir_path, _) in paths.items():
         try:
             os.makedirs(dir_path, exist_ok=True)
@@ -232,16 +283,22 @@ def ensure_paths(paths: Dict[str, Tuple[str, str]]) -> Tuple[bool, str]:
 def save_all_artifacts(scaler: Any, model: RandomForestClassifier, importance_df: pd.DataFrame, 
                       final_features: List[str], metrics: Dict, paths: Dict[str, Tuple[str, str]], 
                       timestamp: str) -> Optional[Dict[str, str]]:
-    """Save all artifacts and metadata, ensuring consistency."""
+   
     try:
+        if not isinstance(scaler, StandardScaler):
+            logger.error(f"Scaler is not a StandardScaler: {type(scaler)}")
+            return None
+        
         scaler_path, scaler_checksum = save_artifact(scaler, *paths['scaler'], "scaler")
         model_path, model_checksum = save_artifact(model, *paths['model'], "model")
         importance_path, importance_checksum = "", ""
+        
         if not importance_df.empty:
             importance_path, importance_checksum = save_artifact(importance_df, *paths['output'], "feature_importance")
             logger.info(f"Feature importance saved at {importance_path} with checksum {importance_checksum}")
         else:
             logger.warning("Feature importance is empty.")
+        
         metadata = {
             'cv_roc_auc': float(metrics.get('cross_validated_roc_auc', 0.0)),
             'cv_accuracy': float(metrics.get('cross_validated_accuracy', 0.0)),
@@ -258,6 +315,7 @@ def save_all_artifacts(scaler: Any, model: RandomForestClassifier, importance_df
             'feature_importance': importance_df.to_dict('records') if not importance_df.empty else [],
             'timestamp': timestamp
         }
+        
         save_model_metadata(paths['model'][0], metadata)
         return {
             'scaler_path': scaler_path,
@@ -270,3 +328,59 @@ def save_all_artifacts(scaler: Any, model: RandomForestClassifier, importance_df
     except (OSError, PermissionError, ValueError) as e:
         logger.error(f"Failed to save artifacts: {str(e)}")
         return None
+
+def check_scaler_type(scaler_path: str, model_dir: str = "save_models") -> Dict:
+    
+    try:
+        # Get artifact paths for checksum
+        paths = get_artifact_paths(model_dir=model_dir, scaler_path=scaler_path)
+        scaler_checksum = paths.get('scaler_checksum', None)
+
+        # Load and verify scaler
+        scaler = load_and_verify_artifact(
+            file_path=scaler_path,
+            expected_checksum=scaler_checksum,
+            expected_type=StandardScaler
+        )
+
+        # Prepare result
+        result = {
+            'status': 'success',
+            'scaler_type': str(type(scaler)),
+            'is_standard_scaler': isinstance(scaler, StandardScaler),
+            'message': f"Scaler loaded successfully from {scaler_path}",
+            'checksum_verified': scaler_checksum is not None
+        }
+        logger.info(f"Scaler check result: {result}")
+        return result
+
+    except FileNotFoundError:
+        result = {
+            'status': 'error',
+            'scaler_type': 'None',
+            'is_standard_scaler': False,
+            'message': f"Scaler file not found: {scaler_path}",
+            'checksum_verified': False
+        }
+        logger.error(result['message'])
+        return result
+    except ValueError as ve:
+        result = {
+            'status': 'error',
+            'scaler_type': 'Unknown',
+            'is_standard_scaler': False,
+            'message': f"Invalid scaler: {str(ve)}",
+            'checksum_verified': scaler_checksum is not None
+        }
+        logger.error(result['message'])
+        return result
+    except Exception as e:
+        result = {
+            'status': 'error',
+            'scaler_type': 'Unknown',
+            'is_standard_scaler': False,
+            'message': f"Failed to check scaler type: {str(e)}",
+            'checksum_verified': False
+        }
+        logger.error(result['message'])
+        return result

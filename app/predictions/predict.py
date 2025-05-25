@@ -10,7 +10,7 @@ from app.utils_model import load_and_verify_artifact, validate_features, get_art
 logger = logging.getLogger(__name__)
 
 def load_model(model_path: Path) -> object:
-    """Load a model from the specified path."""
+    
     try:
         if not model_path.exists():
             raise FileNotFoundError(f"Model file not found: {model_path}")
@@ -22,7 +22,7 @@ def load_model(model_path: Path) -> object:
         raise
 
 def scale_data(data: pd.DataFrame, scaler: StandardScaler, expected_features: List[str]) -> Optional[pd.DataFrame]:
-    """Scale data using the provided scaler, ensuring feature consistency."""
+    
     try:
         valid_features = validate_features(expected_features, data, "Input data features")
         if not valid_features:
@@ -38,7 +38,7 @@ def scale_data(data: pd.DataFrame, scaler: StandardScaler, expected_features: Li
         return None
 
 def make_predictions(model: object, data: pd.DataFrame, threshold: float = 0.75) -> Tuple[Optional[np.ndarray], Optional[np.ndarray], Optional[np.ndarray]]:
-    """Make predictions using the provided model."""
+    
     try:
         if not hasattr(model, 'feature_names_in_'):
             logger.error("Model does not have feature_names_in_ attribute")
@@ -64,7 +64,7 @@ def make_predictions(model: object, data: pd.DataFrame, threshold: float = 0.75)
         return None, None, None
 
 def predict_fsk_answers(engineered_data: pd.DataFrame, model_path: str = None, scaler_path: str = None) -> Tuple[Dict, int]:
-    """Process engineered data, scale, and make predictions using specified or latest model."""
+    
     try:
         # Load artifacts
         paths = get_artifact_paths(model_dir="save_models", model_path=model_path, scaler_path=scaler_path)

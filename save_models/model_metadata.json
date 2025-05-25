@@ -16,11 +16,11 @@
         "fht7",
         "saving_high_score_count"
     ],
-    "model_path": "save_models/custom_model_20250525_013609.pkl",
+    "model_path": "save_models/custom_model_20250525_122118.pkl",
     "model_checksum": "092384cf2df27b7e6ba14b3e828d786914082c0f67e11fc835fe226f00b2cc5b",
-    "scaler_path": "save_scalers/custom_scaler_20250525_013609.pkl",
+    "scaler_path": "save_scalers/custom_scaler_20250525_122118.pkl",
     "scaler_checksum": "f17e069672e4cdc071cb11f531c321de0c1bd41b6e9777d832232e807f386fd1",
-    "feature_importance_path": "output_data/feature_importance_20250525_013609.csv",
+    "feature_importance_path": "output_data/feature_importance_20250525_122118.csv",
     "feature_importance_checksum": "80101c53f4489d36f239ddce16ef2239205fb4d97834c0e943db92e10ace57bf",
     "feature_importance": [
         {
@@ -64,5 +64,11 @@
             "importance": 0.02
         }
     ],
-    "timestamp": "20250525_013609"
+    "timestamp": "20250525_122118",
+    "package_versions": {
+        "sklearn": "1.6.1",
+        "joblib": "1.3.2",
+        "pandas": "2.2.3",
+        "numpy": "2.2.4"
+    }
 }
