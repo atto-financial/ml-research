@@ -101,7 +101,7 @@ def data_preprocessing(engineer_dat: pd.DataFrame, outlier_method: str = 'median
         numeric_cols = [col for col in numeric_cols if col != 'ust']
         for col in numeric_cols:
             scale_clean_engineer_dat[col] = scale_clean_engineer_dat[col].round(3)
-        logger.info(f"Rounded numeric columns {numeric_cols} to 3 decimal places after scaling")
+        logger.info(f"Rounded numeric columns to 3 decimal places after scaling")
 
         return scale_clean_engineer_dat, scaler
 
