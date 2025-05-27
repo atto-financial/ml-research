@@ -59,7 +59,8 @@ def data_engineering_fsk_v1(transform_dat: pd.DataFrame) -> Optional[pd.DataFram
             engineer_dat[f'{group}_score_avg'] = engineer_dat[codes].mean(axis=1)
 
         for group, codes in groups.items():
-            engineer_dat[f'{group}_high_score_count'] = (engineer_dat[codes] == 3).sum(axis=1).astype('float64')
+            # engineer_dat[f'{group}_high_score_count'] = (engineer_dat[codes] == 3).sum(axis=1).astype('float64')
+            
             engineer_dat['debt_to_payoff_ratio'] = engineer_dat['debt_score_sum'] / (engineer_dat['payoff_score_sum'] + 1)
             engineer_dat['loan_to_saving_ratio'] = engineer_dat['loan_score_sum'] / (engineer_dat['saving_score_sum'] + 1)
             engineer_dat['worship_to_vigilance_ratio'] = engineer_dat['worship_score_sum'] / (engineer_dat['vigilance_score_sum'] + 1)
@@ -73,14 +74,14 @@ def data_engineering_fsk_v1(transform_dat: pd.DataFrame) -> Optional[pd.DataFram
             engineer_dat['spending_vigilance_interaction'] = engineer_dat['spending_score_avg'] * engineer_dat['vigilance_score_avg']
             engineer_dat['debt_loan_interaction'] = engineer_dat['debt_score_avg'] * engineer_dat['loan_score_avg']
             engineer_dat['worship_extravagance_interaction'] = engineer_dat['worship_score_avg'] * engineer_dat['extravagance_score_avg']
-
-        for group, codes in groups.items():
+            
             engineer_dat[f'{group}_score_var'] = engineer_dat[codes].var(axis=1).fillna(0)
 
         engineer_dat.replace([np.inf, -np.inf], np.nan, inplace=True)
         engineer_dat.fillna(engineer_dat.median(), inplace=True)
 
         numeric_cols = [col for col in engineer_dat.columns if col not in exclude_cols and engineer_dat[col].dtype in [np.float64, np.int64]]
+        
         zero_variance_after = [col for col in numeric_cols if engineer_dat[col].var() == 0]
         if zero_variance_after:
             logger.info(f"Found {len(zero_variance_after)} features with zero variance after feature engineering: {zero_variance_after}")

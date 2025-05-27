@@ -9,7 +9,7 @@ from app.data.data_transforming import data_transforming_fsk_v1
 from app.data.data_engineering import data_engineering_fsk_v1
 from app.data.data_preprocessing import data_preprocessing
 from app.models.correlation import compute_correlations
-from app.models.lumen import train_model, select_top_features
+from app.models.lumen import train_model, select_top_features, ModelConfig
 from app.utils_model import ensure_paths, load_latest_model_metadata, save_all_artifacts, features_importance, validate_data, validate_features, setup_paths
 from app.predictions.ans_transformimg import set_answers_v1, set_answers_v2, fsk_answers_v1
 from typing import Dict, Tuple, List, Optional
@@ -48,7 +48,6 @@ def run_data_pipeline() -> Optional[pd.DataFrame]:
     return raw_dat
 
 def preprocess_and_select_features(data: pd.DataFrame) -> Tuple[Optional[pd.DataFrame], Optional[StandardScaler], List[str]]:
-    """Preprocess data and select features."""
     try:
         # Preprocess data
         scale_clean_engineer_dat, scaler = data_preprocessing(data)
@@ -76,7 +75,6 @@ def preprocess_and_select_features(data: pd.DataFrame) -> Tuple[Optional[pd.Data
         return None, None, []
 
 def train_and_evaluate_model(data: pd.DataFrame, features: List[str]) -> Tuple[Optional[RandomForestClassifier], Optional[Dict], List[str]]:
-    """Train model and get final features."""
     try:
         model, metrics = train_model(data, features)
         if model is None or metrics is None:
@@ -94,7 +92,7 @@ def train_and_evaluate_model(data: pd.DataFrame, features: List[str]) -> Tuple[O
         return None, None, []
 
 def get_scaler_instructions(artifact_info: Dict, final_features: List[str], package_versions: Dict) -> str:
-    """Generate instructions for using the scaler."""
+   
     if not artifact_info['scaler_path']:
         return "No scaler saved (cv_roc_auc not improved)."
     
@@ -191,55 +189,79 @@ def configure_routes(app):
     
     @app.route('/lumen', methods=['POST'])
     def lumen():
-    
         try:
-            # Initialize paths
+            # Initialize timestamp and configuration
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            paths = setup_paths(timestamp)
-
+            config = ModelConfig(scoring='roc_auc')  # Use ModelConfig from lumen.py
+    
             # Ensure directories exist
+            paths = setup_paths(timestamp)
             paths_ok, error_msg = ensure_paths(paths)
             if not paths_ok:
+                logger.error(f"Failed to create directories: {error_msg}")
                 return jsonify({"error": f"Failed to create directories: {error_msg}"}), 500
-
+    
+            # Log start of pipeline
+            logger.info({"message": "Starting random forest pipeline", "timestamp": timestamp})
+    
             # Run data pipeline
-            logger.info({"message": "Starting data pipeline", "timestamp": timestamp})
             raw_dat = run_data_pipeline()
             if raw_dat is None:
+                logger.error("Data pipeline failed")
                 return jsonify({"error": "Data pipeline failed"}), 500
-
-            # Preprocess and select features
+    
+            # Preprocess data and select features
             scale_clean_engineer_dat, scaler, selected_features = preprocess_and_select_features(raw_dat)
             if scale_clean_engineer_dat is None or scaler is None or not selected_features:
+                logger.error("Preprocessing or feature selection failed")
                 return jsonify({"error": "Preprocessing or feature selection failed"}), 500
             logger.info({"message": "Selected features", "features": selected_features})
-
+    
             # Train model
             model, metrics, final_features = train_and_evaluate_model(scale_clean_engineer_dat, selected_features)
             if model is None or metrics is None:
-                return jsonify({"error": "Model training failed"}), 500
+                logger.error("Failed to train random forest model")
+                return jsonify({"error": "Failed to train random forest model"}), 500
             logger.info({"message": "Final features after RFE", "features": final_features})
-
+    
             # Calculate feature importance
             importance_df = features_importance(model, scale_clean_engineer_dat[final_features])
             if importance_df.empty:
                 logger.warning({"message": "Feature importance calculation returned empty DataFrame"})
-
-            # Extract and validate metrics
+    
+            # Extract and validate metrics, including Confidence Intervals and Overfitting Gap
             metrics_summary = {
                 'cv_roc_auc': float(metrics.get('cross_validated_roc_auc', 0.0)),
                 'cv_accuracy': float(metrics.get('cross_validated_accuracy', 0.0)),
                 'cv_precision': float(metrics.get('cross_validated_precision', 0.0)),
                 'cv_recall': float(metrics.get('cross_validated_recall', 0.0)),
-                'cv_f1': float(metrics.get('cross_validated_f1', 0.0))
+                'cv_f1': float(metrics.get('cross_validated_f1', 0.0)),
+                'cv_score_mean': float(metrics.get('cv_score_mean', 0.0)),
+                'cv_score_std': float(metrics.get('cv_score_std', 0.0)),
+                'test_roc_auc': float(metrics.get('test_roc_auc', 0.0)),
+                'test_accuracy': float(metrics.get('test_accuracy', 0.0)),
+                'test_precision': float(metrics.get('test_precision', 0.0)),
+                'test_recall': float(metrics.get('test_recall', 0.0)),
+                'test_f1': float(metrics.get('test_f1', 0.0)),
+                'accuracy_ci_lower': float(metrics.get('accuracy_ci_lower', np.nan)),
+                'accuracy_ci_upper': float(metrics.get('accuracy_ci_upper', np.nan)),
+                'precision_ci_lower': float(metrics.get('precision_ci_lower', np.nan)),
+                'precision_ci_upper': float(metrics.get('precision_ci_upper', np.nan)),
+                'recall_ci_lower': float(metrics.get('recall_ci_lower', np.nan)),
+                'recall_ci_upper': float(metrics.get('recall_ci_upper', np.nan)),
+                'f1_ci_lower': float(metrics.get('f1_ci_lower', np.nan)),
+                'f1_ci_upper': float(metrics.get('f1_ci_upper', np.nan)),
+                'roc_auc_ci_lower': float(metrics.get('roc_auc_ci_lower', np.nan)),
+                'roc_auc_ci_upper': float(metrics.get('roc_auc_ci_upper', np.nan)),
+                'overfitting_gap': float(abs(metrics.get('cross_validated_accuracy', 0.0) - metrics.get('test_accuracy', 0.0)))
             }
             for metric, value in metrics_summary.items():
                 if np.isnan(value) or value < 0.0:
                     logger.warning({"message": f"Invalid {metric}", "value": value})
                     metrics_summary[metric] = 0.0
             logger.info({"message": "Training metrics", "metrics": metrics_summary})
-
-            # Compare with latest model
+    
+            
             latest_metadata = load_latest_model_metadata(paths['model'][0])
             latest_cv_roc_auc = latest_metadata.get('cv_roc_auc', 0.0)
             metadata_exists = bool(latest_metadata.get('model_path'))
@@ -249,14 +271,14 @@ def configure_routes(app):
                 "current_cv_roc_auc": metrics_summary['cv_roc_auc'],
                 "latest_cv_roc_auc": latest_cv_roc_auc
             })
-
-            # Save artifacts if first run or model improves
+    
+            
             artifact_info = {
                 'scaler_path': '', 'scaler_checksum': '',
                 'model_path': '', 'model_checksum': '',
                 'importance_path': '', 'importance_checksum': ''
             }
-            if not metadata_exists or metrics_summary['cv_roc_auc'] >= latest_cv_roc_auc:
+            if not metadata_exists or metrics_summary['cv_roc_auc'] > latest_cv_roc_auc:
                 logger.info({
                     "message": "Saving artifacts",
                     "first_run": not metadata_exists,
@@ -267,37 +289,36 @@ def configure_routes(app):
                     scaler, model, importance_df, final_features, metrics, paths, timestamp
                 )
                 if artifact_info is None:
+                    logger.error("Failed to save artifacts")
                     return jsonify({"error": "Failed to save artifacts"}), 500
-
-            # Prepare scaler instructions
+    
+         
             package_versions = {
                 'sklearn': sklearn.__version__,
                 'joblib': joblib.__version__
             }
             scaler_instructions = get_scaler_instructions(artifact_info, final_features, package_versions)
-
-            # Prepare response
+    
+           
             response = {
                 'model': str(model),
-                'metrics': {
-                    **metrics_summary,
-                    'classification_report': metrics.get('classification_report', {})
-                },
+                'metrics': metrics_summary,
                 'final_features': final_features,
                 'artifacts': artifact_info,
                 'scaler_instructions': scaler_instructions,
                 'latest_cv_roc_auc': latest_cv_roc_auc,
                 'package_versions': package_versions
             }
+    
             logger.info({"message": "Training completed successfully", "response": response})
             return jsonify(response), 200
-
+    
         except ValueError as ve:
-            logger.error({"message": "ValueError in rdftrain", "error": str(ve)})
+            logger.error({"message": "ValueError in lumen", "error": str(ve)})
             return jsonify({"error": f"ValueError: {str(ve)}"}), 400
         except (OSError, PermissionError) as e:
-            logger.error({"message": "System Error in rdftrain", "error": str(e)})
+            logger.error({"message": "System Error in lumen", "error": str(e)})
             return jsonify({"error": f"System Error: {str(e)}"}), 500
         except Exception as e:
-            logger.error({"message": "Internal Server Error in rdftrain", "error": str(e)})
+            logger.error({"message": "Internal Server Error in lumen", "error": str(e)})
             return jsonify({"error": f"Internal Server Error: {str(e)}"}), 500

@@ -74,8 +74,7 @@ def data_loading_fsk_v1() -> Optional[pd.DataFrame]:
             users AS u ON f.user_id = u.id
         WHERE 
             (u.user_status = 1 AND u.user_verified = 3) 
-            OR (u.user_status = 0 AND u.user_verified = 3 AND u.payoff_score >= 4)
-            OR (u.user_blacklist =1 AND u.user_verified = 3);
+            OR (u.user_status = 0 AND u.user_verified = 3 AND u.payoff_score >= 4);
     """
     try:
         conn = get_db_connection() 
@@ -89,7 +88,9 @@ def data_loading_fsk_v1() -> Optional[pd.DataFrame]:
             raw_dat.loc[(raw_dat['ubl'] == 1) & (raw_dat['ust'].isna()), 'ust'] = np.int64(1)
             raw_dat.drop(columns=['ubl'], inplace=True)
         else:
-            print("Error: Columns 'ubl' or 'ust' not found in DataFrame")
+            logger.info(f"Columns 'ubl' not found in DataFrame")
+        logger.info(f"DataFrame shape after processing: {raw_dat.shape}")
+        logger.info(f"DataFrame columns after processing: {raw_dat.head(30)}")
         
         return raw_dat
     
