@@ -79,6 +79,9 @@ def fsk_answers_v1(answers: Dict, model_path: str = None, scaler_path: str = Non
         required_keys = ['fht', 'set', 'kmsi']
         validate_input(answers, required_keys)
         fht, set_, kmsi = answers['fht'], answers['set'], answers['kmsi']
+        print(fht)
+        print(set_)
+        print(kmsi)
         logger.debug(
             f"Validated input: fht={len(fht)}, set={len(set_)}, kmsi={len(kmsi)}")
 
