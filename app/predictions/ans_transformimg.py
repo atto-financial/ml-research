@@ -19,6 +19,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+
 def validate_input(answers: Dict, required_keys: List[str]) -> None:
     """Validate that the input dictionary has required keys and list values."""
     missing_keys = [key for key in required_keys if key not in answers]
@@ -26,18 +27,22 @@ def validate_input(answers: Dict, required_keys: List[str]) -> None:
         raise ValueError(f"Missing required keys: {', '.join(missing_keys)}")
     for key in required_keys:
         if not isinstance(answers[key], list):
-            raise ValueError(f"Key '{key}' must be a list, got {type(answers[key])}")
+            raise ValueError(
+                f"Key '{key}' must be a list, got {type(answers[key])}")
+
 
 def set_answers_v1(data):
     answers = []
     for i in range(len(data)):
         value = int(data[i])
         answers.append(value)
-    cus_ans_data = pd.DataFrame([answers], columns=[f'cdd{i+9}' for i in range(len(answers))])
+    cus_ans_data = pd.DataFrame(
+        [answers], columns=[f'cdd{i+9}' for i in range(len(answers))])
     from app.predictions.ans_predictions import load_model
     model = load_model("rdf50_m1.2_cdd_f1.0")
     from app.predictions.ans_predictions import make_predictions
-    predictions, probabilities, predictions_adjusted = make_predictions(model, cus_ans_data)
+    predictions, probabilities, predictions_adjusted = make_predictions(
+        model, cus_ans_data)
     results = {
         'model_prediction': int(predictions[0]),
         'default_probability': float(f"{probabilities[0]:.3f}"),
@@ -45,32 +50,43 @@ def set_answers_v1(data):
     }
     return results
 
+
 def set_answers_v2(answers):
     import pandas as pd
-    
+
     fht = answers.get('fht')
     cdd = answers.get('cdd')
     kmsi = answers.get('kmsi')
-    
+
     import pandas as pd
-    
-    cus_ans_data = pd.DataFrame([cdd], columns=[f'cdd{i+9}' for i in range(len(cdd))])
+
+    cus_ans_data = pd.DataFrame(
+        [cdd], columns=[f'cdd{i+9}' for i in range(len(cdd))])
     from app.predictions.ans_predictions import load_model
     model = load_model("rdf50_m1.2_cdd_f1.0")
     from app.predictions.ans_predictions import make_predictions
-    predictions, probabilities, predictions_adjusted = make_predictions(model, cus_ans_data)
+    predictions, probabilities, predictions_adjusted = make_predictions(
+        model, cus_ans_data)
     results = {
         'default_probability': float(f"{probabilities[0]:.3f}"),
         'model_prediction': int(predictions[0]),
         'adjust_prediction': int(predictions_adjusted),
     }
 
+
 def fsk_answers_v1(answers: Dict, model_path: str = None, scaler_path: str = None) -> Tuple[Dict, int]:
     try:
         required_keys = ['fht', 'set', 'kmsi']
         validate_input(answers, required_keys)
         fht, set_, kmsi = answers['fht'], answers['set'], answers['kmsi']
-        logger.debug(f"Validated input: fht={len(fht)}, set={len(set_)}, kmsi={len(kmsi)}")
+        logger.debug(
+            f"Validated input: fht={len(fht)}, set={len(set_)}, kmsi={len(kmsi)}")
+
+        for i in range(len(kmsi)):
+            if kmsi[i] in [1, 2]:
+                kmsi[i] = 1
+            elif kmsi[i] == 3:
+                kmsi[i] = 2
 
         cus_ans = fht + set_ + kmsi
         columns = (
@@ -79,7 +95,8 @@ def fsk_answers_v1(answers: Dict, model_path: str = None, scaler_path: str = Non
             [f'kmsi{i+1}' for i in range(len(kmsi))]
         )
         cus_ans_data = pd.DataFrame([cus_ans], columns=columns)
-        logger.debug(f"Input data shape: {cus_ans_data.shape}, columns: {list(cus_ans_data.columns)}")
+        logger.debug(
+            f"Input data shape: {cus_ans_data.shape}, columns: {list(cus_ans_data.columns)}")
 
         cus_transformed_data = data_transforming_fsk_v1(cus_ans_data)
         if not validate_data(cus_transformed_data, "Transformed data"):
@@ -90,27 +107,38 @@ def fsk_answers_v1(answers: Dict, model_path: str = None, scaler_path: str = Non
         if not validate_data(cus_engineered_data, "Engineered data"):
             logger.error("Feature engineering failed")
             raise ValueError("Feature engineering failed")
-        logger.debug(f"Engineered data shape: {cus_engineered_data.shape}, columns: {list(cus_engineered_data.columns)}")
+        logger.debug(
+            f"Engineered data shape: {cus_engineered_data.shape}, columns: {list(cus_engineered_data.columns)}")
 
-        non_numeric_cols = cus_engineered_data.select_dtypes(exclude=[np.number]).columns
+        non_numeric_cols = cus_engineered_data.select_dtypes(
+            exclude=[np.number]).columns
         if non_numeric_cols.any():
-            logger.error(f"Non-numeric columns in cus_engineered_data: {list(non_numeric_cols)}")
-            raise ValueError(f"Non-numeric columns found: {list(non_numeric_cols)}")
+            logger.error(
+                f"Non-numeric columns in cus_engineered_data: {list(non_numeric_cols)}")
+            raise ValueError(
+                f"Non-numeric columns found: {list(non_numeric_cols)}")
 
-        columns_to_drop = [col for col in cus_engineered_data.columns if col.endswith('_sum')]
+        columns_to_drop = [
+            col for col in cus_engineered_data.columns if col.endswith('_sum')]
         if columns_to_drop:
             logger.info(f"Dropping columns: {columns_to_drop}")
-            cus_engineered_data = cus_engineered_data.drop(columns=columns_to_drop)
-        logger.debug(f"Final engineered data shape: {cus_engineered_data.shape}, columns: {list(cus_engineered_data.columns)}")
+            cus_engineered_data = cus_engineered_data.drop(
+                columns=columns_to_drop)
+        logger.debug(
+            f"Final engineered data shape: {cus_engineered_data.shape}, columns: {list(cus_engineered_data.columns)}")
 
-        paths = get_artifact_paths(model_dir="save_models", model_path=model_path, scaler_path=scaler_path)
-        model = load_and_verify_artifact(paths['model_path'], paths['model_checksum']) if paths['model_checksum'] else load(paths['model_path'])
-        expected_features = paths.get('final_features', []) or (model.feature_names_in_ if hasattr(model, 'feature_names_in_') else [])
+        paths = get_artifact_paths(
+            model_dir="save_models", model_path=model_path, scaler_path=scaler_path)
+        model = load_and_verify_artifact(
+            paths['model_path'], paths['model_checksum']) if paths['model_checksum'] else load(paths['model_path'])
+        expected_features = paths.get('final_features', []) or (
+            model.feature_names_in_ if hasattr(model, 'feature_names_in_') else [])
         if isinstance(expected_features, (np.ndarray, pd.Series)):
             expected_features = expected_features.tolist()
         logger.debug(f"Expected features: {expected_features}")
 
-        results, status = predict_answers(cus_engineered_data, model_path=model_path, scaler_path=scaler_path)
+        results, status = predict_answers(
+            cus_engineered_data, model_path=model_path, scaler_path=scaler_path)
         return results, status
 
     except ValueError as ve:
