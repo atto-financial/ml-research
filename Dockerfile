@@ -17,6 +17,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 RUN pip install --upgrade numpy pandas scikit-learn
 
 COPY ./app ./app
+COPY ./output_data ./output_data
+COPY ./plots ./plots
+COPY ./save_models ./save_models
+COPY ./save_scalers ./save_scalers
 
 EXPOSE 5000
 ENV FLASK_APP=app.app
