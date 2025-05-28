@@ -9,7 +9,7 @@ from app.data.data_transforming import data_transforming_fsk_v1
 from app.data.data_engineering import data_engineering_fsk_v1
 from app.data.data_preprocessing import data_preprocessing
 from app.models.correlation import compute_correlations
-from app.models.lumen import train_model, select_top_features, ModelConfig
+from app.models.lucis import train_model, select_top_features, ModelConfig
 from app.utils_model import ensure_paths, load_latest_model_metadata, save_all_artifacts, features_importance, validate_data, validate_features, setup_paths
 from app.predictions.ans_transformimg import set_answers_v1, set_answers_v2, fsk_answers_v1
 from typing import Dict, Tuple, List, Optional
@@ -187,8 +187,8 @@ def configure_routes(app):
             logger.error(f"Error in /predict: {str(e)}", exc_info=True)
             return jsonify({"error": f"Internal Server Error: {str(e)}"}), 500
     
-    @app.route('/lumen', methods=['POST'])
-    def lumen():
+    @app.route('/lucis', methods=['POST'])
+    def lucis():
         try:
             
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
