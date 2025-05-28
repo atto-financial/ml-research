@@ -27,8 +27,8 @@ logger = logging.getLogger(__name__)
 
 class ModelConfig:
     def __init__(self, scoring: str = 'roc_auc', oversampling_method: str = 'smote'):
-        self.n_estimators = [50, 100]
-        self.max_depth = [5, 8, None]
+        self.n_estimators = [100, 200]
+        self.max_depth = [3, 5, None]
         self.min_samples_split = [5, 10]
         self.n_features_to_select = 3
         self.n_folds = 5
@@ -217,7 +217,6 @@ def evaluate_model(model: RandomForestClassifier, X_train: pd.DataFrame, y_train
             'cv_score_std': np.nanstd(cv_scores) if cv_scores else np.nan
         }
 
-        # Warn if variance is high
         if cv_metrics['cv_score_std'] > 0.1:
             logger.warning(f"High variance in CV scores (std: {cv_metrics['cv_score_std']:.3f}). Model may be unstable.")
 

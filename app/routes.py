@@ -190,18 +190,17 @@ def configure_routes(app):
     @app.route('/lumen', methods=['POST'])
     def lumen():
         try:
-            # Initialize timestamp and configuration
+            
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             config = ModelConfig(scoring='roc_auc')  # Use ModelConfig from lumen.py
     
-            # Ensure directories exist
+            
             paths = setup_paths(timestamp)
             paths_ok, error_msg = ensure_paths(paths)
             if not paths_ok:
                 logger.error(f"Failed to create directories: {error_msg}")
                 return jsonify({"error": f"Failed to create directories: {error_msg}"}), 500
-    
-            # Log start of pipeline
+            
             logger.info({"message": "Starting random forest pipeline", "timestamp": timestamp})
     
             # Run data pipeline
@@ -229,7 +228,6 @@ def configure_routes(app):
             if importance_df.empty:
                 logger.warning({"message": "Feature importance calculation returned empty DataFrame"})
     
-            # Extract and validate metrics, including Confidence Intervals and Overfitting Gap
             metrics_summary = {
                 'cv_roc_auc': float(metrics.get('cross_validated_roc_auc', 0.0)),
                 'cv_accuracy': float(metrics.get('cross_validated_accuracy', 0.0)),
@@ -272,7 +270,6 @@ def configure_routes(app):
                 "latest_cv_roc_auc": latest_cv_roc_auc
             })
     
-            
             artifact_info = {
                 'scaler_path': '', 'scaler_checksum': '',
                 'model_path': '', 'model_checksum': '',
@@ -301,15 +298,50 @@ def configure_routes(app):
     
            
             response = {
-                'model': str(model),
-                'metrics': metrics_summary,
-                'final_features': final_features,
-                'artifacts': artifact_info,
-                'scaler_instructions': scaler_instructions,
-                'latest_cv_roc_auc': latest_cv_roc_auc,
-                'package_versions': package_versions
-            }
-    
+            '0.model': str(model),
+            '1.latest_cv_roc_auc': latest_cv_roc_auc,
+            '2.metrics': {
+                'cv_roc_auc': metrics_summary['cv_roc_auc'],
+                'cv_accuracy': metrics_summary['cv_accuracy'],
+                'cv_precision': metrics_summary['cv_precision'],
+                'cv_recall': metrics_summary['cv_recall'],
+                'cv_f1': metrics_summary['cv_f1'],
+                'test_roc_auc': metrics_summary['test_roc_auc'],
+                'test_accuracy': metrics_summary['test_accuracy'],
+                'test_precision': metrics_summary['test_precision'],
+                'test_recall': metrics_summary['test_recall'],
+                'test_f1': metrics_summary['test_f1'],
+                'variance': metrics_summary['cv_score_std'],
+                'overfitting_gap': metrics_summary['overfitting_gap'],
+            },
+            '3.confidence_intervals': {
+                'accuracy': {
+                    'lower': metrics_summary['accuracy_ci_lower'],
+                    'upper': metrics_summary['accuracy_ci_upper']
+                },
+                'precision': {
+                    'lower': metrics_summary['precision_ci_lower'],
+                    'upper': metrics_summary['precision_ci_upper']
+                },
+                'recall': {
+                    'lower': metrics_summary['recall_ci_lower'],
+                    'upper': metrics_summary['recall_ci_upper']
+                },
+                'f1': {
+                    'lower': metrics_summary['f1_ci_lower'],
+                    'upper': metrics_summary['f1_ci_upper']
+                },
+                'roc_auc': {
+                    'lower': metrics_summary['roc_auc_ci_lower'],
+                    'upper': metrics_summary['roc_auc_ci_upper']
+                }
+            },
+            '4.final_features': final_features,
+            '5.artifacts': artifact_info,
+            '6.package_versions': package_versions,
+            '7.scaler_instructions': scaler_instructions,
+        }
+
             logger.info({"message": "Training completed successfully", "response": response})
             return jsonify(response), 200
     
