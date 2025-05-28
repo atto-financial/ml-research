@@ -71,7 +71,7 @@ print("CV ROC AUC:", roc_auc_score(y, y_prob_cv[:, 1]))
 model.fit(X, y)
 feature_importance = pd.DataFrame({
     'feature': X.columns,
-    'importance': model.feature_importances_
+    'importance': model.feature_importances
 }).sort_values('importance', ascending=False)
 print("Feature Importance:\n", feature_importance)
 

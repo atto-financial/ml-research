@@ -3,8 +3,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-MODEL_PATH = os.getenv("MODEL_PATH")
-
 DB_CONFIG = {
     "host": os.getenv("DB_HOST"),
     "user": os.getenv("DB_USER"),
