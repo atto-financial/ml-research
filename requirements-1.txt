@@ -20,9 +20,4 @@ Flask-Cors==5.0.1
 # 🔐 Environment Configuration
 python-dotenv==1.0.1
 
-# 🖼️ Visualization
-matplotlib==3.10.3 
-
-# etc.
-seaborn==0.13.2
-imblearn==0.0 
+# matplotlib
