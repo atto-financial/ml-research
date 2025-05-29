@@ -7,7 +7,7 @@ from typing import Optional, Tuple, Dict, List
 from sklearn.model_selection import train_test_split, cross_val_predict, StratifiedKFold, GridSearchCV
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.feature_selection import RFE
-from sklearn.metrics import accuracy_score, classification_report, precision_score, recall_score, roc_auc_score, f1_score
+from sklearn.metrics import accuracy_score, precision_score, recall_score, roc_auc_score, f1_score
 from imblearn.over_sampling import SMOTE, ADASYN, RandomOverSampler
 from joblib import dump, load
 from app.data.data_loading import data_loading_fsk_v1
