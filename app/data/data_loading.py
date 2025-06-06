@@ -75,8 +75,11 @@ INNER JOIN
 LEFT JOIN
     loans AS l ON u.id = l.user_id
 WHERE 
-    (u.user_status = 1 AND u.user_verified = 3) 
-    OR (u.user_status = 0 AND u.user_verified = 3 AND u.payoff_score >= 4)
+    (
+        (u.user_status = 1 AND u.user_verified = 3 AND f.feature_label = 'fsk_v1.0')
+        OR 
+        (u.user_status = 0 AND u.user_verified = 3 AND u.payoff_score >= 4 AND f.feature_label = 'fsk_v1.0')
+    )
 GROUP BY
     f.fht_1, f.fht_2, f.fht_3, f.fht_4, f.fht_5, f.fht_6, f.fht_7, f.fht_8,
     f.cdd_9, f.cdd_10, f.kmsi_1, f.kmsi_2, f.kmsi_3, f.kmsi_4, f.kmsi_5,
@@ -97,6 +100,8 @@ GROUP BY
             logger.info(f"Columns 'ubl' not found in DataFrame")
         logger.info(f"DataFrame shape after processing: {raw_dat.shape}")
         logger.info(f"DataFrame columns after processing: {raw_dat.head(30)}")
+        
+        raw_dat.drop(columns=['loan_count'], inplace=True)
         
         return raw_dat
     
