@@ -1,16 +1,21 @@
 # 🧠 Core Libraries
-pandas==1.5.3
-numpy==1.24.3
+# pandas==1.5.3
+pandas>=1.3.0
+# numpy==1.24.3
+numpy>=1.20.0
 
 # 🤖 Machine Learning
-scikit-learn==1.2.2
-joblib==1.3.2
+# scikit-learn==1.2.2
+scikit-learn==1.0.2
+# joblib==1.3.2
+joblib>=1.0.0
 
 # 🗄️ Database Connector
 mysql-connector-python==8.0.33
 
 # 🌐 Web Framework (Flask)
-Flask==2.2.3
+# Flask==2.2.3
+flask>=2.0.0
 Flask-RESTful==0.3.9
 Werkzeug==2.2.3
 
@@ -25,4 +30,5 @@ matplotlib==3.10.3
 
 # etc.
 seaborn==0.13.2
-imblearn==0.0 
+# imblearn==0.0 
+imbalanced-learn==0.8.1
