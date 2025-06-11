@@ -12,9 +12,9 @@ engine = create_engine('mysql+mysqlconnector://root:fPQaiBKOdemHsgYaQlFKbqeLkAmj
 
 # Query
 query = """
-SELECT cdd_1 AS cdd1, cdd_2 AS cdd2, cdd_3 AS cdd3, cdd_4 AS cdd4, 
-       cdd_5 AS cdd5, cdd_6 AS cdd6, cdd_7 AS cdd7, cdd_8 AS cdd8, 
-       cdd_9 AS cdd9, cdd_10 AS cdd10, cdd_11 AS cdd11, 
+SELECT set_1 AS set1, set_2 AS set2, set_3 AS set3, set_4 AS set4, 
+       set_5 AS set5, set_6 AS set6, set_7 AS set7, set_8 AS set8, 
+       set_9 AS set9, set_10 AS set10, set_11 AS set11, 
        init_payoff_score AS ins, user_status AS ust 
 FROM users 
 WHERE user_status = 1 OR (user_status = 0 and payoff_score > 4)
