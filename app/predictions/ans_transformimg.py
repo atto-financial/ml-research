@@ -37,9 +37,9 @@ def set_answers_v1(data):
         value = int(data[i])
         answers.append(value)
     cus_ans_data = pd.DataFrame(
-        [answers], columns=[f'cdd{i+9}' for i in range(len(answers))])
+        [answers], columns=[f'set{i+9}' for i in range(len(answers))])
     from app.predictions.ans_predictions import load_model
-    model = load_model("rdf50_m1.2_cdd_f1.0")
+    model = load_model("rdf50_m1.2_set_f1.0")
     from app.predictions.ans_predictions import make_predictions
     predictions, probabilities, predictions_adjusted = make_predictions(
         model, cus_ans_data)
@@ -55,15 +55,15 @@ def set_answers_v2(answers):
     import pandas as pd
 
     fht = answers.get('fht')
-    cdd = answers.get('cdd')
+    set = answers.get('set')
     kmsi = answers.get('kmsi')
 
     import pandas as pd
 
     cus_ans_data = pd.DataFrame(
-        [cdd], columns=[f'cdd{i+9}' for i in range(len(cdd))])
+        [set], columns=[f'set{i+9}' for i in range(len(set))])
     from app.predictions.ans_predictions import load_model
-    model = load_model("rdf50_m1.2_cdd_f1.0")
+    model = load_model("rdf50_m1.2_set_f1.0")
     from app.predictions.ans_predictions import make_predictions
     predictions, probabilities, predictions_adjusted = make_predictions(
         model, cus_ans_data)

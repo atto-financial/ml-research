@@ -20,18 +20,18 @@ print("load model.pkl complete")
 # Test
 # ดึงข้อมูลลูกค้ารายใหม่จากตาราง new_customers
 # query_new = """
-# SELECT cdd_1 AS cdd1, cdd_2 AS cdd2, cdd_3 AS cdd3, cdd_4 AS cdd4, 
-#        cdd_5 AS cdd5, cdd_6 AS cdd6, cdd_7 AS cdd7, cdd_8 AS cdd8, 
-#        cdd_9 AS cdd9, cdd_10 AS cdd10, cdd_11 AS cdd11,
+# SELECT set_1 AS set1, set_2 AS set2, set_3 AS set3, set_4 AS set4, 
+#        set_5 AS set5, set_6 AS set6, set_7 AS set7, set_8 AS set8, 
+#        set_9 AS set9, set_10 AS set10, set_11 AS set11,
 #        customer_id
 # FROM new_customers
 # WHERE processed = 0
 # """
 
-cdd_ans = [2, 2, 2, 2, 3, 3, 1, 1, 1, 2, 2] 
+set_ans = [2, 2, 2, 2, 3, 3, 1, 1, 1, 2, 2] 
 
-cdd_df = pd.DataFrame([cdd_ans], columns=[f'cdd{i+1}' for i in range(len(cdd_ans))])
-print("cdd_df:", cdd_df)
+set_df = pd.DataFrame([set_ans], columns=[f'set{i+1}' for i in range(len(set_ans))])
+print("set_df:", set_df)
 
 print("X:", new_customers)
 
@@ -55,7 +55,7 @@ print("loan assesment (0 = approve loan, 1 = deny loan):", predictions[0])
 # predictions_adjusted = (probabilities >= threshold).astype(int)
 # print(f"loan threshold adjusted = {threshold} :", predictions_adjusted[0])
 
-new_customers = pd.read_sql(cdd_df, engine)
+new_customers = pd.read_sql(set_df, engine)
 
 # ตรวจสอบว่ามีข้อมูลลูกค้ารายใหม่หรือไม่
 if new_customers.empty:

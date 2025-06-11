@@ -18,12 +18,12 @@ logger = logging.getLogger(__name__)
 def data_loading_set_v1()-> Optional[pd.DataFrame]:
     query = """
         SELECT 
-            c.cdd_1 AS cdd1, c.cdd_2 AS cdd2, c.cdd_3 AS cdd3, c.cdd_4 AS cdd4, 
-            c.cdd_5 AS cdd5, c.cdd_6 AS cdd6, c.cdd_7 AS cdd7, c.cdd_8 AS cdd8, 
-            c.cdd_9 AS cdd9, c.cdd_10 AS cdd10, c.cdd_11 AS cdd11, 
+            c.set_1 AS set1, c.set_2 AS set2, c.set_3 AS set3, c.set_4 AS set4, 
+            c.set_5 AS set5, c.set_6 AS set6, c.set_7 AS set7, c.set_8 AS set8, 
+            c.set_9 AS set9, c.set_10 AS set10, c.set_11 AS set11, 
             u.latest_loan_payoff_score AS ins, u.user_status AS ust 
         FROM 
-            cdd_answers AS c
+            set_answers AS c
         INNER JOIN 
             users AS u ON c.user_id = u.id
         WHERE 
@@ -55,8 +55,8 @@ def data_loading_fsk_v1() -> Optional[pd.DataFrame]:
             f.fht_6 AS fht6, 
             f.fht_7 AS fht7, 
             f.fht_8 AS fht8, 
-            f.cdd_9 AS set1, 
-            f.cdd_10 AS set2, 
+            f.set_9 AS set1, 
+            f.set_10 AS set2, 
             f.kmsi_1 AS kmsi1, 
             f.kmsi_2 AS kmsi2, 
             f.kmsi_3 AS kmsi3, 
@@ -69,7 +69,7 @@ def data_loading_fsk_v1() -> Optional[pd.DataFrame]:
             u.user_status AS ust,
             u.id AS user_id
         FROM 
-            fck_answers AS f
+            fsk_answers AS f
         INNER JOIN 
             users AS u ON f.user_id = u.id
         WHERE 

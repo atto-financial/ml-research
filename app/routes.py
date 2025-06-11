@@ -134,12 +134,12 @@ def configure_routes(app):
             model_path = request_body.get("model_path")
             scaler_path = request_body.get("scaler_path")
 
-            if app_label in ["cdd_f1.0_score", "cdd_f1.0_criteria"]:
+            if app_label in ["set_f1.0_score", "set_f1.0_criteria"]:
                 results = set_answers_v1(answers)
                 logger.info(f"Processed {app_label}: {results}")
                 return jsonify(results), 200
 
-            elif app_label == "rdf50_m1.2_cdd_f1.0":
+            elif app_label == "rdf50_m1.2_set_f1.0":
                 results = set_answers_v2(answers)
                 logger.info(f"Processed {app_label}: {results}")
                 return jsonify(results), 200
