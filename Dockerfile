@@ -14,8 +14,6 @@ RUN pip install --upgrade pip setuptools wheel
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-RUN pip install --upgrade numpy pandas scikit-learn
-
 COPY ./app ./app
 COPY ./output_data ./output_data
 COPY ./plots ./plots
