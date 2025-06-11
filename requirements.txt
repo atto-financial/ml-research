@@ -1,9 +1,9 @@
 # 🧠 Core Libraries
 pandas==1.5.3
-numpy==1.24.3
+numpy==1.26.4
 
 # 🤖 Machine Learning
-scikit-learn==1.5.2
+scikit-learn==1.6.1
 joblib==1.3.2
 imbalanced-learn==0.12.3
 
