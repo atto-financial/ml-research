@@ -92,6 +92,8 @@ def data_loading_fsk_v1() -> Optional[pd.DataFrame]:
         logger.info(f"DataFrame shape after processing: {raw_dat.shape}")
         logger.info(f"DataFrame columns after processing: {raw_dat.head(30)}")
         
+        raw_dat.drop(columns=['loan_count'], inplace=True)
+        
         return raw_dat
     
     except Exception as e:

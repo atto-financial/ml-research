@@ -192,7 +192,7 @@ def configure_routes(app):
         try:
             
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            config = ModelConfig(scoring='roc_auc')  # Use ModelConfig from lumen.py
+            config = ModelConfig(scoring='roc_auc')  
     
             
             paths = setup_paths(timestamp)
