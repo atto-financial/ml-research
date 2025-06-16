@@ -11,7 +11,7 @@ from app.data.data_preprocessing import data_preprocessing
 from app.models.correlation import compute_correlations
 from app.models.lucis import train_model, select_top_features, ModelConfig
 from app.utils_model import ensure_paths, load_latest_model_metadata, save_all_artifacts, features_importance, validate_data, validate_features, setup_paths
-from app.predictions.ans_transformimg import set_answers_v1, set_answers_v2, fsk_answers_v1
+from app.predictions.ans_transformimg import set_answers_v1, set_answers_v2, fsk_answers_v1, fsk_answers_v2
 from typing import Dict, Tuple, List, Optional
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestClassifier
@@ -49,7 +49,7 @@ def run_data_pipeline() -> Optional[pd.DataFrame]:
 
 def preprocess_and_select_features(data: pd.DataFrame) -> Tuple[Optional[pd.DataFrame], Optional[StandardScaler], List[str]]:
     try:
-        # Preprocess data
+        
         scale_clean_engineer_dat, scaler = data_preprocessing(data)
         if not validate_data(scale_clean_engineer_dat, "Preprocessed data") or scaler is None:
             logger.error("Preprocessing failed or scaler is None")
@@ -58,7 +58,6 @@ def preprocess_and_select_features(data: pd.DataFrame) -> Tuple[Optional[pd.Data
             logger.error("Scaler is not a fitted StandardScaler")
             return None, None, []
         
-        # Select features
         corr_dat = compute_correlations(scale_clean_engineer_dat)
         if not validate_data(corr_dat, "Correlation data"):
             logger.error("Failed to compute correlations")
@@ -115,6 +114,7 @@ def configure_routes(app):
 
     @app.route('/eval', methods=['POST'])
     def evaluate():
+        print("Received request on /eval")
         try:
             request_body = request.get_json()
             if not request_body:
@@ -144,16 +144,19 @@ def configure_routes(app):
                 logger.info(f"Processed {app_label}: {results}")
                 return jsonify(results), 200
 
-            # elif app_label == "rdf50_m1.0_fsk_f1.0":
-            #     results, status = fsk_answers_v1(answers, model_path=model_path, scaler_path=scaler_path)
-            #     results['application_label'] = app_label
-            #     logger.info(f"Processed {app_label}: {results}")
-            #     return jsonify(results), status
-            elif app_label == "rdf50_m2.0_fsk_f1.0":
-              results, status = fsk_answers_v1(answers, model_path=model_path, scaler_path=scaler_path)
-              results['application_label'] = app_label
-              logger.info(f"Processed {app_label}: {results}")
-              return jsonify(results), status
+            elif app_label == "rdf50_m1.0_fsk_f1.0":
+                results, status = fsk_answers_v1(answers, model_path=model_path, scaler_path=scaler_path)
+                results['application_label'] = app_label
+                logger.info(f"Processed {app_label}: {results}")
+                return jsonify(results), status
+            
+            
+            elif app_label == "rdf50_m1.0_fsk_f2.0":
+                print(model_path, scaler_path)
+                results, status = fsk_answers_v2(answers, model_path=model_path, scaler_path=scaler_path)
+                results['application_label'] = app_label
+                logger.info(f"Processed {app_label}: {results}")
+                return jsonify(results), status
         except Exception as e:
             logger.error(f"Error in /eval: {str(e)}")
             return jsonify({"error": f"Internal Server Error: {str(e)}"}), 500
@@ -195,11 +198,9 @@ def configure_routes(app):
     @app.route('/lucis', methods=['POST'])
     def lucis():
         try:
-            
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             config = ModelConfig(scoring='roc_auc')  
     
-            
             paths = setup_paths(timestamp)
             paths_ok, error_msg = ensure_paths(paths)
             if not paths_ok:
@@ -208,27 +209,23 @@ def configure_routes(app):
             
             logger.info({"message": "Starting random forest pipeline", "timestamp": timestamp})
     
-            # Run data pipeline
             raw_dat = run_data_pipeline()
             if raw_dat is None:
                 logger.error("Data pipeline failed")
                 return jsonify({"error": "Data pipeline failed"}), 500
-    
-            # Preprocess data and select features
+  
             scale_clean_engineer_dat, scaler, selected_features = preprocess_and_select_features(raw_dat)
             if scale_clean_engineer_dat is None or scaler is None or not selected_features:
                 logger.error("Preprocessing or feature selection failed")
                 return jsonify({"error": "Preprocessing or feature selection failed"}), 500
             logger.info({"message": "Selected features", "features": selected_features})
-    
-            # Train model
+
             model, metrics, final_features = train_and_evaluate_model(scale_clean_engineer_dat, selected_features)
             if model is None or metrics is None:
                 logger.error("Failed to train random forest model")
                 return jsonify({"error": "Failed to train random forest model"}), 500
             logger.info({"message": "Final features after RFE", "features": final_features})
     
-            # Calculate feature importance
             importance_df = features_importance(model, scale_clean_engineer_dat[final_features])
             if importance_df.empty:
                 logger.warning({"message": "Feature importance calculation returned empty DataFrame"})
@@ -264,89 +261,91 @@ def configure_routes(app):
                     metrics_summary[metric] = 0.0
             logger.info({"message": "Training metrics", "metrics": metrics_summary})
     
-            
             latest_metadata = load_latest_model_metadata(paths['model'][0])
-            latest_cv_roc_auc = latest_metadata.get('cv_roc_auc', 0.0)
+            latest_cv_recall = latest_metadata.get('cv_recall', 0.0)
             metadata_exists = bool(latest_metadata.get('model_path'))
             logger.info({
                 "message": "Model comparison",
                 "metadata_exists": metadata_exists,
                 "current_cv_roc_auc": metrics_summary['cv_roc_auc'],
-                "latest_cv_roc_auc": latest_cv_roc_auc
+                "latest_cv_recall": latest_cv_recall
             })
     
             artifact_info = {
                 'scaler_path': '', 'scaler_checksum': '',
                 'model_path': '', 'model_checksum': '',
-                'importance_path': '', 'importance_checksum': ''
+                'metadata_path': '', 'metadata_checksum': ''
             }
-            if not metadata_exists or metrics_summary['cv_roc_auc'] > latest_cv_roc_auc:
+            if not metadata_exists or (metrics_summary['cv_recall'] > latest_cv_recall and metrics_summary['cv_score_std'] < 0.10):
                 logger.info({
                     "message": "Saving artifacts",
                     "first_run": not metadata_exists,
-                    "cv_roc_auc": metrics_summary['cv_roc_auc'],
-                    "latest_cv_roc_auc": latest_cv_roc_auc
+                    "cv_recall": metrics_summary['cv_recall'],
+                    "latest_cv_recall": latest_cv_recall
                 })
                 artifact_info = save_all_artifacts(
-                    scaler, model, importance_df, final_features, metrics, paths, timestamp
+                    scaler, model, importance_df, final_features, metrics_summary, paths, timestamp  
                 )
                 if artifact_info is None:
                     logger.error("Failed to save artifacts")
                     return jsonify({"error": "Failed to save artifacts"}), 500
     
-         
             package_versions = {
                 'sklearn': sklearn.__version__,
                 'joblib': joblib.__version__
             }
             scaler_instructions = get_scaler_instructions(artifact_info, final_features, package_versions)
     
-           
+            final_features_dict = [
+                {'feature': row['feature'], 'importance': float(row['importance'])}
+                for _, row in importance_df.iterrows()
+            ]
+    
             response = {
-            '0.model': str(model),
-            '1.latest_cv_roc_auc': latest_cv_roc_auc,
-            '2.metrics': {
-                'cv_roc_auc': metrics_summary['cv_roc_auc'],
-                'cv_accuracy': metrics_summary['cv_accuracy'],
-                'cv_precision': metrics_summary['cv_precision'],
-                'cv_recall': metrics_summary['cv_recall'],
-                'cv_f1': metrics_summary['cv_f1'],
-                'test_roc_auc': metrics_summary['test_roc_auc'],
-                'test_accuracy': metrics_summary['test_accuracy'],
-                'test_precision': metrics_summary['test_precision'],
-                'test_recall': metrics_summary['test_recall'],
-                'test_f1': metrics_summary['test_f1'],
-                'variance': metrics_summary['cv_score_std'],
-                'overfitting_gap': metrics_summary['overfitting_gap'],
-            },
-            '3.confidence_intervals': {
-                'accuracy': {
-                    'lower': metrics_summary['accuracy_ci_lower'],
-                    'upper': metrics_summary['accuracy_ci_upper']
+                '0.model': str(model),
+                '1.latest_cv_recall': latest_cv_recall,
+                '2.metrics': {
+                    'cv_roc_auc': metrics_summary['cv_roc_auc'],
+                    'cv_accuracy': metrics_summary['cv_accuracy'],
+                    'cv_precision': metrics_summary['cv_precision'],
+                    'cv_recall': metrics_summary['cv_recall'],
+                    'cv_f1': metrics_summary['cv_f1'],
+                    'test_roc_auc': metrics_summary['test_roc_auc'],
+                    'test_accuracy': metrics_summary['test_accuracy'],
+                    'test_precision': metrics_summary['test_precision'],
+                    'test_recall': metrics_summary['test_recall'],
+                    'test_f1': metrics_summary['test_f1'],
+                    'variance': metrics_summary['cv_score_std'],
+                    'overfitting_gap': metrics_summary['overfitting_gap'],
                 },
-                'precision': {
-                    'lower': metrics_summary['precision_ci_lower'],
-                    'upper': metrics_summary['precision_ci_upper']
+                '3.confidence_intervals': {
+                    'accuracy': {
+                        'lower': metrics_summary['accuracy_ci_lower'],
+                        'upper': metrics_summary['accuracy_ci_upper']
+                    },
+                    'precision': {
+                        'lower': metrics_summary['precision_ci_lower'],
+                        'upper': metrics_summary['precision_ci_upper']
+                    },
+                    'recall': {
+                        'lower': metrics_summary['recall_ci_lower'],
+                        'upper': metrics_summary['recall_ci_upper']
+                    },
+                    'f1': {
+                        'lower': metrics_summary['f1_ci_lower'],
+                        'upper': metrics_summary['f1_ci_upper']
+                    },
+                    'roc_auc': {
+                        'lower': metrics_summary['roc_auc_ci_lower'],
+                        'upper': metrics_summary['roc_auc_ci_upper']
+                    }
                 },
-                'recall': {
-                    'lower': metrics_summary['recall_ci_lower'],
-                    'upper': metrics_summary['recall_ci_upper']
-                },
-                'f1': {
-                    'lower': metrics_summary['f1_ci_lower'],
-                    'upper': metrics_summary['f1_ci_upper']
-                },
-                'roc_auc': {
-                    'lower': metrics_summary['roc_auc_ci_lower'],
-                    'upper': metrics_summary['roc_auc_ci_upper']
-                }
-            },
-            '4.final_features': final_features,
-            '5.artifacts': artifact_info,
-            '6.package_versions': package_versions,
-            '7.scaler_instructions': scaler_instructions,
-        }
-
+                '4.final_features': final_features_dict,
+                '5.artifacts': artifact_info,
+                '6.package_versions': package_versions,
+                '7.scaler_instructions': scaler_instructions,
+            }
+    
             logger.info({"message": "Training completed successfully", "response": response})
             return jsonify(response), 200
     

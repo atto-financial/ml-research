@@ -6,10 +6,12 @@ from datetime import datetime
 from typing import Optional, Tuple, Dict, List
 from sklearn.model_selection import train_test_split, cross_val_predict, StratifiedKFold, GridSearchCV
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.feature_selection import RFE
-from sklearn.metrics import accuracy_score, precision_score, recall_score, roc_auc_score, f1_score
-from imblearn.over_sampling import SMOTE, ADASYN, RandomOverSampler
-from joblib import dump, load
+from sklearn.feature_selection import SelectFromModel
+from sklearn.metrics import accuracy_score, precision_score, recall_score, roc_auc_score, f1_score, precision_recall_curve, auc, confusion_matrix
+from imblearn.over_sampling import SMOTE, ADASYN, RandomOverSampler, SMOTENC, BorderlineSMOTE
+from imblearn.under_sampling import RandomUnderSampler
+from scipy.stats import norm
+from joblib import dump
 from app.data.data_loading import data_loading_fsk_v1
 from app.data.data_cleaning import data_cleaning_fsk_v1
 from app.data.data_transforming import data_transforming_fsk_v1
@@ -25,22 +27,51 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+
 class ModelConfig:
-    def __init__(self, scoring: str = 'roc_auc', oversampling_method: str = 'smote'):
-        self.n_estimators = [100, 200]
-        self.max_depth = [3, 5, None]
-        self.min_samples_split = [5, 10]
-        self.n_features_to_select = 3
-        self.n_folds = 5
+    def __init__(self, scoring: str = 'recall', oversampling_method: str = 'borderline', custom_params: Optional[Dict] = None):
+        self.n_estimators = custom_params.get('n_estimators', [50, 100, 200]) if custom_params else [50, 100, 200]
+        self.max_depth = custom_params.get('max_depth', [3, 5, 10, None]) if custom_params else [3, 5, 10, None]
+        self.min_samples_split = custom_params.get('min_samples_split', [2, 5, 10]) if custom_params else [2, 5, 10]
+        self.n_features_to_select = custom_params.get('n_features_to_select', 10) if custom_params else 10
+        self.n_folds = custom_params.get('n_folds', 5) if custom_params else 5
         self.scoring = scoring
         self.random_state = 42
         self.oversampling_method = oversampling_method
+        self.categorical_features = custom_params.get('categorical_features', []) if custom_params else []
+        self.use_undersampling = custom_params.get('use_undersampling', False) if custom_params else False
 
-def validate_dataframe(df: pd.DataFrame, name: str) -> bool:
-    if df is None or df.empty:
-        logger.error(f"{name} DataFrame is None or empty.")
+def validate_dataframe(df: pd.DataFrame, name: str, target_col: Optional[str] = None, 
+                      allow_categorical: bool = False) -> bool:
+    try:
+        if df.empty:
+            logger.error(f"DataFrame '{name}' is empty.")
+            return False
+        if target_col is not None:
+            if target_col not in df.columns:
+                logger.error(f"Target column '{target_col}' not found in {name}.")
+                return False
+            if df[target_col].nunique() < 2:
+                logger.error(f"Target column in {name} has {df[target_col].nunique()} unique values.")
+                return False
+        if not allow_categorical and target_col is not None:
+            non_target_cols = df.drop(columns=[target_col]).columns
+            non_numeric_cols = df[non_target_cols].select_dtypes(exclude=['int64', 'float64']).columns
+            if non_numeric_cols.size > 0:
+                logger.error(f"Non-numeric columns found in {name}: {non_numeric_cols.tolist()}.")
+                return False
+        elif not allow_categorical:
+            non_numeric_cols = df.select_dtypes(exclude=['int64', 'float64']).columns
+            if non_numeric_cols.size > 0:
+                logger.error(f"Non-numeric columns found in {name}: {non_numeric_cols.tolist()}.")
+                return False
+        if df.isnull().any().any():
+            logger.error(f"Missing values found in {name}.")
+            return False
+        return True
+    except Exception as e:
+        logger.error(f"Unexpected error validating DataFrame '{name}': {str(e)}")
         return False
-    return True
 
 def check_class_balance(y: pd.Series, target_col: str) -> bool:
     try:
@@ -51,37 +82,52 @@ def check_class_balance(y: pd.Series, target_col: str) -> bool:
         for class_label, percentage in class_balance.items():
             logger.info(f"Class {class_label}: {class_counts[class_label]} samples ({percentage:.2f}%)")
         balance_ratio = class_counts.min() / class_counts.max()
-        if balance_ratio < 0.9:
-            logger.warning(f"Classes are imbalanced (ratio: {balance_ratio:.2f}).")
+        if balance_ratio < 0.2:  # Adjusted for severe imbalance in credit data
+            logger.warning(f"Severe class imbalance detected (ratio: {balance_ratio:.2f}).")
             return False
         return True
     except Exception as e:
         logger.error(f"Error checking class balance: {str(e)}")
         return False
     
-def apply_oversampling(X: pd.DataFrame, y: pd.Series, method: str, random_state: int) -> Tuple[pd.DataFrame, pd.Series]:
+def apply_oversampling(X: pd.DataFrame, y: pd.Series, method: str, random_state: int, 
+                      categorical_features: List[str] = None, use_undersampling: bool = False, 
+                      memory_threshold: int = 1_000_000_000) -> Tuple[pd.DataFrame, pd.Series]:
     try:
+        categorical_features = categorical_features or []
+        categorical_indices = [X.columns.get_loc(col) for col in categorical_features if col in X.columns]
+
+        if X.memory_usage().sum() > memory_threshold:
+            logger.warning(f"Dataset size exceeds {memory_threshold/1e6:.0f}MB. Consider chunking or SMOTENC.")
+
         if method == 'smote':
             oversampler = SMOTE(random_state=random_state, k_neighbors=min(3, len(y) - 1))
         elif method == 'adasyn':
             oversampler = ADASYN(random_state=random_state, n_neighbors=min(3, len(y) - 1))
         elif method == 'random':
             oversampler = RandomOverSampler(random_state=random_state)
+        elif method == 'smotenc' and categorical_features:
+            oversampler = SMOTENC(random_state=random_state, categorical_features=categorical_indices, k_neighbors=min(3, len(y) - 1))
+        elif method == 'borderline':
+            oversampler = BorderlineSMOTE(random_state=random_state, k_neighbors=min(3, len(y) - 1))
         else:
             logger.error(f"Unsupported oversampling method: {method}")
             return X, y
 
-        if X.memory_usage().sum() > 1_000_000_000:
-            logger.warning("Large dataset detected. Consider using SMOTENC for categorical features.")
-        
         X_resampled, y_resampled = oversampler.fit_resample(X, y)
         logger.info(f"Applied {method.upper()}: Resampled data shape: {X_resampled.shape}")
+
+        if use_undersampling:
+            undersampler = RandomUnderSampler(random_state=random_state)
+            X_resampled, y_resampled = undersampler.fit_resample(X_resampled, y_resampled)
+            logger.info(f"Applied RandomUnderSampler: Final data shape: {X_resampled.shape}")
+
         return X_resampled, y_resampled
     except ValueError as e:
-        logger.warning(f"Oversampling failed: {str(e)}. Using original data.")
+        logger.warning(f"Oversampling/Undersampling failed: {str(e)}. Using original data.")
         return X, y
     except Exception as e:
-        logger.error(f"Unexpected error in oversampling: {str(e)}")
+        logger.error(f"Unexpected error in oversampling/undersampling: {str(e)}")
         return X, y
     
 def select_top_features(corr_dat: pd.DataFrame, n: int = 10) -> List[str]:
@@ -118,33 +164,24 @@ def features_importance(model: RandomForestClassifier, X: pd.DataFrame) -> pd.Da
         return pd.DataFrame()
 
 def compute_confidence_intervals(y_true: np.ndarray, y_pred: np.ndarray, y_prob: np.ndarray, 
-                                n_bootstraps: int = 1000, alpha: float = 0.05) -> Dict:
+                                n_bootstraps: int = 500, alpha: float = 0.05) -> Dict:
     try:
-        metrics = {
-            'accuracy': [],
-            'precision': [],
-            'recall': [],
-            'f1': [],
-            'roc_auc': []
-        }
-        
         n_samples = len(y_true)
-        if n_samples < 10:
-            logger.warning("Test set too small for reliable CI calculation (< 10 samples)")
-            ci_dict = {}
-            for m in metrics:
-                ci_dict[f"{m}_ci_lower"] = 0.0
-                ci_dict[f"{m}_ci_upper"] = 0.0
+        if n_samples < 10 or len(np.unique(y_true)) < 2:
+            logger.warning("Test set too small or single-class, CI set to 0.0")
+            ci_dict = {f"{m}_ci_lower": 0.0 for m in ['accuracy', 'precision', 'recall', 'f1', 'roc_auc', 'pr_auc']}
+            ci_dict.update({f"{m}_ci_upper": 0.0 for m in ['accuracy', 'precision', 'recall', 'f1', 'roc_auc', 'pr_auc']})
             return ci_dict
-        
-        if len(np.unique(y_true)) < 2:
-            logger.warning("Test set has only one class, CI cannot be computed")
-            ci_dict = {}
-            for m in metrics:
-                ci_dict[f"{m}_ci_lower"] = 0.0
-                ci_dict[f"{m}_ci_upper"] = 0.0
-            return ci_dict
-        
+
+        # Analytical CI for accuracy
+        acc = accuracy_score(y_true, y_pred)
+        z = norm.ppf(1 - alpha / 2)
+        acc_se = np.sqrt((acc * (1 - acc)) / n_samples)
+        acc_ci_lower = max(0.0, acc - z * acc_se)
+        acc_ci_upper = min(1.0, acc + z * acc_se)
+
+        # Bootstrap for other metrics
+        metrics = {'precision': [], 'recall': [], 'f1': [], 'roc_auc': [], 'pr_auc': []}
         rng = np.random.default_rng(seed=42)
         
         for _ in range(n_bootstraps):
@@ -156,42 +193,39 @@ def compute_confidence_intervals(y_true: np.ndarray, y_pred: np.ndarray, y_prob:
             if len(np.unique(y_true_boot)) < 2:
                 continue
                 
-            metrics['accuracy'].append(accuracy_score(y_true_boot, y_pred_boot))
             metrics['precision'].append(precision_score(y_true_boot, y_pred_boot, zero_division=0))
             metrics['recall'].append(recall_score(y_true_boot, y_pred_boot, zero_division=0))
             metrics['f1'].append(f1_score(y_true_boot, y_pred_boot, zero_division=0))
             metrics['roc_auc'].append(roc_auc_score(y_true_boot, y_prob_boot) if len(np.unique(y_true_boot)) > 1 else np.nan)
+            precision, recall, _ = precision_recall_curve(y_true_boot, y_prob_boot)
+            metrics['pr_auc'].append(auc(recall, precision))
         
-        ci_results = {}
+        ci_results = {
+            'accuracy_ci_lower': acc_ci_lower,
+            'accuracy_ci_upper': acc_ci_upper
+        }
         for metric, values in metrics.items():
             values = np.array([v for v in values if not np.isnan(v)])
-            if len(values) < 10:  # Ensure enough bootstrap samples
-                logger.warning(f"Too few valid bootstrap samples for {metric} ({len(values)}), setting CI to 0.0")
+            if len(values) < 10:
                 ci_results[f'{metric}_ci_lower'] = 0.0
                 ci_results[f'{metric}_ci_upper'] = 0.0
             else:
                 ci_lower = np.nanpercentile(values, alpha / 2 * 100)
                 ci_upper = np.nanpercentile(values, 100 - (alpha / 2 * 100))
-                if ci_lower == ci_upper:
-                    logger.warning(f"CI for {metric} is identical ({ci_lower}), adjusting slightly")
-                    ci_lower = max(0.0, ci_lower - 0.01)
-                    ci_upper = min(1.0, ci_upper + 0.01)
                 ci_results[f'{metric}_ci_lower'] = ci_lower
                 ci_results[f'{metric}_ci_upper'] = ci_upper
                 
         return ci_results
     except Exception as e:
         logger.error(f"Error computing confidence intervals: {str(e)}")
-        ci_dict = {}
-        for m in ['accuracy', 'precision', 'recall', 'f1', 'roc_auc']:
-            ci_dict[f"{m}_ci_lower"] = 0.0
-            ci_dict[f"{m}_ci_upper"] = 0.0
+        ci_dict = {f"{m}_ci_lower": 0.0 for m in ['accuracy', 'precision', 'recall', 'f1', 'roc_auc', 'pr_auc']}
+        ci_dict.update({f"{m}_ci_upper": 0.0 for m in ['accuracy', 'precision', 'recall', 'f1', 'roc_auc', 'pr_auc']})
         return ci_dict
 
 def evaluate_model(model: RandomForestClassifier, X_train: pd.DataFrame, y_train: pd.Series, 
                   X_test: pd.DataFrame, y_test: pd.Series, cv: StratifiedKFold) -> Dict:
     try:
-        # Cross-validation scores
+        # Cross-validation evaluation
         cv_scores = []
         for train_idx, test_idx in cv.split(X_train, y_train):
             X_train_fold, X_test_fold = X_train.iloc[train_idx], X_train.iloc[test_idx]
@@ -199,49 +233,48 @@ def evaluate_model(model: RandomForestClassifier, X_train: pd.DataFrame, y_train
             model.fit(X_train_fold, y_train_fold)
             y_prob_fold = model.predict_proba(X_test_fold)[:, 1]
             if len(np.unique(y_test_fold)) > 1:
-                cv_scores.append(roc_auc_score(y_test_fold, y_prob_fold))
-            else:
-                cv_scores.append(np.nan)
+                cv_scores.append(recall_score(y_test_fold, model.predict(X_test_fold)))
 
-        # Cross-validation metrics
         y_pred_cv = cross_val_predict(model, X_train, y_train, cv=cv)
-        y_prob_cv = cross_val_predict(model, X_train, y_train, cv=cv, method='predict_proba')
+        y_prob_cv = cross_val_predict(model, X_train, y_train, cv=cv, method='predict_proba')[:, 1]
+        precision_cv, recall_cv, _ = precision_recall_curve(y_train, y_prob_cv)
         cv_metrics = {
             'cross_validated_accuracy': accuracy_score(y_train, y_pred_cv),
             'cross_validated_precision': precision_score(y_train, y_pred_cv, zero_division=1),
             'cross_validated_recall': recall_score(y_train, y_pred_cv, zero_division=1),
             'cross_validated_f1': f1_score(y_train, y_pred_cv, zero_division=1),
-            'cross_validated_roc_auc': roc_auc_score(y_train, y_prob_cv[:, 1]) if len(np.unique(y_train)) > 1 else np.nan,
+            'cross_validated_roc_auc': roc_auc_score(y_train, y_prob_cv) if len(np.unique(y_train)) > 1 else np.nan,
+            'cross_validated_pr_auc': auc(recall_cv, precision_cv),
             'cv_scores': cv_scores,
             'cv_score_mean': np.nanmean(cv_scores) if cv_scores else np.nan,
             'cv_score_std': np.nanstd(cv_scores) if cv_scores else np.nan
         }
 
         if cv_metrics['cv_score_std'] > 0.1:
-            logger.warning(f"High variance in CV scores (std: {cv_metrics['cv_score_std']:.3f}). Model may be unstable.")
+            logger.warning(f"High variance in CV scores (std: {cv_metrics['cv_score_std']:.3f}).")
 
-        # Test set metrics
+        # Test set evaluation
         y_pred_test = model.predict(X_test)
         y_prob_test = model.predict_proba(X_test)[:, 1]
+        precision_test, recall_test, _ = precision_recall_curve(y_test, y_prob_test)
         test_metrics = {
             'test_accuracy': accuracy_score(y_test, y_pred_test),
             'test_precision': precision_score(y_test, y_pred_test, zero_division=1),
             'test_recall': recall_score(y_test, y_pred_test, zero_division=1),
             'test_f1': f1_score(y_test, y_pred_test, zero_division=1),
-            'test_roc_auc': roc_auc_score(y_test, y_prob_test) if len(np.unique(y_test)) > 1 else np.nan
+            'test_roc_auc': roc_auc_score(y_test, y_prob_test) if len(np.unique(y_test)) > 1 else np.nan,
+            'test_pr_auc': auc(recall_test, precision_test),
+            'confusion_matrix': confusion_matrix(y_test, y_pred_test)
         }
 
         ci_metrics = compute_confidence_intervals(y_test.values, y_pred_test, y_prob_test)
 
-        if abs(cv_metrics['cross_validated_accuracy'] - test_metrics['test_accuracy']) > 0.1:
-            logger.warning("Possible overfitting detected: significant performance gap between CV and test set.")
+        if abs(cv_metrics['cross_validated_recall'] - test_metrics['test_recall']) > 0.1:
+            logger.warning("Possible overfitting: significant gap in recall between CV and test set.")
 
         return {**cv_metrics, **test_metrics, **ci_metrics}
-    except ValueError as e:
-        logger.error(f"Error evaluating model: {str(e)}")
-        return {}
     except Exception as e:
-        logger.error(f"Unexpected error in evaluate_model: {str(e)}")
+        logger.error(f"Error evaluating model: {str(e)}")
         return {}
 
 def tune_hyperparameters(X: pd.DataFrame, y: pd.Series, config: ModelConfig) -> RandomForestClassifier:
@@ -249,9 +282,10 @@ def tune_hyperparameters(X: pd.DataFrame, y: pd.Series, config: ModelConfig) -> 
         param_grid = {
             'n_estimators': config.n_estimators,
             'max_depth': config.max_depth,
-            'min_samples_split': config.min_samples_split
+            'min_samples_split': config.min_samples_split,
+            'class_weight': ['balanced', {0: 1, 1: 5}, {0: 1, 1: 10}]  # Added for credit risk
         }
-        base_model = RandomForestClassifier(random_state=config.random_state, class_weight='balanced')
+        base_model = RandomForestClassifier(random_state=config.random_state)
         grid_search = GridSearchCV(
             estimator=base_model,
             param_grid=param_grid,
@@ -269,31 +303,33 @@ def tune_hyperparameters(X: pd.DataFrame, y: pd.Series, config: ModelConfig) -> 
         logger.error(f"Unexpected error in hyperparameter tuning: {str(e)}")
         return RandomForestClassifier(random_state=config.random_state, class_weight='balanced')
 
-def rfe_feature_selection(X: pd.DataFrame, y: pd.Series, config: ModelConfig, target_col: str = 'ust') -> Tuple[List[str], Optional[RandomForestClassifier], Dict]:
+def final_features (X: pd.DataFrame, y: pd.Series, config: ModelConfig, target_col: str = 'ust') -> Tuple[List[str], Optional[RandomForestClassifier], Dict]:
     try:
         if not validate_dataframe(X, "Feature") or y is None or y.empty:
             return [], None, {}
 
-        # Split data into train and test sets
+        # Split data
         X_train, X_test, y_train, y_test = train_test_split(
             X, y, test_size=0.2, random_state=config.random_state, stratify=y
         )
 
-        # Apply oversampling on training data only
-        X_train, y_train = apply_oversampling(X_train, y_train, config.oversampling_method, config.random_state)
+        # Apply oversampling/undersampling after split to avoid data leakage
+        X_train, y_train = apply_oversampling(
+            X_train, y_train, config.oversampling_method, config.random_state, 
+            config.categorical_features, config.use_undersampling
+        )
         check_class_balance(y_train, target_col)
 
         # Tune hyperparameters
         model = tune_hyperparameters(X_train, y_train, config)
 
-        # RFE feature selection
-        n_features = max(config.n_features_to_select, len(X.columns) // 2)
-        rfe = RFE(estimator=model, n_features_to_select=n_features)
-        rfe.fit(X_train, y_train)
-        selected_features = X.columns[rfe.support_].tolist()
-        logger.info(f"RFE selected {len(selected_features)} features: {selected_features}")
+        # Use SelectFromModel for feature selection
+        selector = SelectFromModel(model, max_features=config.n_features_to_select, threshold="mean")
+        selector.fit(X_train, y_train)
+        selected_features = X.columns[selector.get_support()].tolist()
+        logger.info(f"SelectFromModel selected {len(selected_features)} features: {selected_features}")
 
-        # Train final model with selected features
+        # Train final model
         X_train_selected = X_train[selected_features]
         X_test_selected = X_test[selected_features]
         model.fit(X_train_selected, y_train)
@@ -308,13 +344,13 @@ def rfe_feature_selection(X: pd.DataFrame, y: pd.Series, config: ModelConfig, ta
         metrics['n_features_selected'] = len(selected_features)
 
         return selected_features, model, metrics
-
     except Exception as e:
-        logger.error(f"Error during RFE feature selection: {str(e)}")
+        logger.error(f"Error during feature selection: {str(e)}")
         return [], None, {}
 
+
 def train_model(scale_clean_engineer_dat: pd.DataFrame, selected_features: List[str], 
-                target_col: str = 'ust', scoring: str = 'roc_auc') -> Tuple[Optional[RandomForestClassifier], Optional[Dict]]:
+                target_col: str = 'ust', scoring: str = 'recall') -> Tuple[Optional[RandomForestClassifier], Optional[Dict]]:
     try:
         if not validate_dataframe(scale_clean_engineer_dat, "Input") or not selected_features:
             return None, None
@@ -323,31 +359,28 @@ def train_model(scale_clean_engineer_dat: pd.DataFrame, selected_features: List[
             logger.error(f"Target column '{target_col}' not found.")
             return None, None
 
-        X = scale_clean_engineer_dat[selected_features]
-        y = scale_clean_engineer_dat[target_col]
-
-        if y.nunique() != 2:
-            logger.error(f"Target column '{target_col}' is not binary. Found {y.nunique()} unique values.")
+        if scale_clean_engineer_dat[target_col].nunique() != 2:
+            logger.error(f"Target column '{target_col}' is not binary. Found {scale_clean_engineer_dat[target_col].nunique()} unique values.")
             return None, None
 
-        check_class_balance(y, target_col)
+        check_class_balance(scale_clean_engineer_dat[target_col], target_col)
         config = ModelConfig(scoring=scoring)
-        best_features, best_model, best_metrics = rfe_feature_selection(X, y, config, target_col)
+        best_features, best_model, best_metrics = final_features(
+            scale_clean_engineer_dat[selected_features], 
+            scale_clean_engineer_dat[target_col], 
+            config, 
+            target_col
+        )
 
         if not best_features or best_model is None:
-            logger.error("RFE feature selection failed.")
+            logger.error("Feature selection failed.")
             return None, None
 
         logger.info(f"Final Model Metrics: {best_metrics}")
         return best_model, best_metrics
-
     except Exception as e:
         logger.error(f"Error during model training: {str(e)}")
         return None, None
-
-    except Exception as e:
-        logger.error(f"Error during model training: {str(e)}")
-        return None, None, None
 
 if __name__ == "__main__":
     config = ModelConfig()

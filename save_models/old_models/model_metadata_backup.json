@@ -1,0 +1,74 @@
+{
+    "cv_roc_auc": 0.903114186851211,
+    "cv_accuracy": 0.8823529411764706,
+    "cv_precision": 0.9333333333333333,
+    "cv_recall": 0.8235294117647058,
+    "cv_f1": 0.875,
+    "final_features": [
+        "fht1",
+        "kmsi7",
+        "spending_score_avg",
+        "kmsi1",
+        "spending_vigilance_interaction",
+        "loan_score_var",
+        "vigilance_score_avg",
+        "debt_worship_interaction",
+        "worship_to_vigilance_ratio",
+        "extravagance_to_spending_ratio"
+    ],
+    "model_path": "save_models/custom_model_20250606_185848.pkl",
+    "model_checksum": "3be67190f14a3f67e85563bb258426d3fc40a48a15bfeda37f7ba1fc17c6b586",
+    "scaler_path": "save_scalers/custom_scaler_20250606_185848.pkl",
+    "scaler_checksum": "e3f10274015ed3edef6e5beccee85aa983ff1081d4e99ab585a0a7c58a7e443f",
+    "feature_importance_path": "output_data/feature_importance_20250606_185848.csv",
+    "feature_importance_checksum": "25931e439818e49137e0606f84badb0c30ffb54a1755d75b4809988bde62700e",
+    "feature_importance": [
+        {
+            "feature": "loan_score_var",
+            "importance": 0.1569101706167897
+        },
+        {
+            "feature": "fht1",
+            "importance": 0.14675981887228826
+        },
+        {
+            "feature": "debt_worship_interaction",
+            "importance": 0.12128728188335516
+        },
+        {
+            "feature": "spending_vigilance_interaction",
+            "importance": 0.11535338878807226
+        },
+        {
+            "feature": "vigilance_score_avg",
+            "importance": 0.09741658902035312
+        },
+        {
+            "feature": "kmsi7",
+            "importance": 0.09438409158399252
+        },
+        {
+            "feature": "spending_score_avg",
+            "importance": 0.07615279463618259
+        },
+        {
+            "feature": "kmsi1",
+            "importance": 0.07401985309379354
+        },
+        {
+            "feature": "extravagance_to_spending_ratio",
+            "importance": 0.06271250353427349
+        },
+        {
+            "feature": "worship_to_vigilance_ratio",
+            "importance": 0.0550035079708992
+        }
+    ],
+    "timestamp": "20250606_185848",
+    "package_versions": {
+        "sklearn": "1.6.1",
+        "joblib": "1.3.2",
+        "pandas": "2.2.3",
+        "numpy": "2.2.6"
+    }
+}

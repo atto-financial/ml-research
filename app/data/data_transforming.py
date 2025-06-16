@@ -50,8 +50,10 @@ def data_transforming_fsk_v1(clean_dat: pd.DataFrame) -> Optional[pd.DataFrame]:
 
         fht_mapping = {1: 3, 2: 2, 3: 1}
         set_mapping = {1: 1, 2: 2, 3: 3}
-        kmsi16_mapping = {1: 1, 2: 3}
-        kmsi78_mapping = {1: 3, 2: 1}
+        # kmsi16_mapping = {1: 1, 2: 3}
+        # kmsi78_mapping = {1: 3, 2: 1}
+        kmsi16_mapping = {1: 1,2: 2, 3: 3}
+        kmsi78_mapping = {1: 3, 2: 2, 3: 1}
 
         fht_columns = ['fht1', 'fht2', 'fht3', 'fht4', 'fht5', 'fht6', 'fht7', 'fht8']
         set_columns = ['set1', 'set2']

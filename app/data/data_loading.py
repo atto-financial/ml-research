@@ -46,7 +46,7 @@ def data_loading_set_v1()-> Optional[pd.DataFrame]:
 def data_loading_fsk_v1() -> Optional[pd.DataFrame]:
 
     query = """
-        SELECT 
+       SELECT 
             f.fht_1 AS fht1, 
             f.fht_2 AS fht2, 
             f.fht_3 AS fht3, 
@@ -55,8 +55,8 @@ def data_loading_fsk_v1() -> Optional[pd.DataFrame]:
             f.fht_6 AS fht6, 
             f.fht_7 AS fht7, 
             f.fht_8 AS fht8, 
-            f.set_9 AS set1, 
-            f.set_10 AS set2, 
+            f.cdd_9 AS set1, 
+            f.cdd_10 AS set2, 
             f.kmsi_1 AS kmsi1, 
             f.kmsi_2 AS kmsi2, 
             f.kmsi_3 AS kmsi3, 
@@ -65,16 +65,15 @@ def data_loading_fsk_v1() -> Optional[pd.DataFrame]:
             f.kmsi_6 AS kmsi6, 
             f.kmsi_7 AS kmsi7, 
             f.kmsi_8 AS kmsi8,
-            u.user_blacklist AS ubl,
             u.user_status AS ust,
             u.id AS user_id
         FROM 
-            fsk_answers AS f
+            fck_answers AS f
         INNER JOIN 
             users AS u ON f.user_id = u.id
         WHERE 
-            (u.user_status = 1 AND u.user_verified = 3) 
-            OR (u.user_status = 0 AND u.user_verified = 3 AND u.payoff_score >= 4);
+            (u.user_status = 1 AND u.user_verified = 3 AND f.feature_label = "fsk_v2.0") OR 
+            (u.user_status = 0 AND u.user_verified = 3 AND u.payoff_score >= 5 AND f.feature_label = "fsk_v2.0");
     """
     try:
         conn = get_db_connection() 
@@ -91,8 +90,6 @@ def data_loading_fsk_v1() -> Optional[pd.DataFrame]:
             logger.info(f"Columns 'ubl' not found in DataFrame")
         logger.info(f"DataFrame shape after processing: {raw_dat.shape}")
         logger.info(f"DataFrame columns after processing: {raw_dat.head(30)}")
-        
-        raw_dat.drop(columns=['loan_count'], inplace=True)
         
         return raw_dat
     

@@ -27,7 +27,10 @@ def load_model(model_path: Path) -> object:
         raise
 
 def scaler_function(cus_engineered_data: pd.DataFrame, scaler: StandardScaler, expected_features: List[str]) -> Optional[pd.DataFrame]:
-    
+    if isinstance(expected_features, (np.ndarray, pd.Series)):
+        expected_features = expected_features.tolist()
+    if expected_features and isinstance(expected_features[0], dict):
+        expected_features = [f['feature'] for f in expected_features if 'feature' in f]
     try:
         logger.debug(f"Input data shape: {cus_engineered_data.shape}, columns: {list(cus_engineered_data.columns)}")
         
@@ -124,7 +127,6 @@ def prediction_function(model: object, scaled_cus_data: pd.DataFrame, adjusted_t
         return None, None, None
 
 def predict_answers(cus_engineered_data: pd.DataFrame, model_path: str = None, scaler_path: str = None) -> Tuple[Dict, int]:
-    
     try:
         if not isinstance(cus_engineered_data, pd.DataFrame):
             logger.error(f"Expected DataFrame, got {type(cus_engineered_data)}")
