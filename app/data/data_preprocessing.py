@@ -55,6 +55,12 @@ def data_preprocessing(engineer_dat: pd.DataFrame, outlier_method: str = 'median
             scale_clean_engineer_dat = scale_clean_engineer_dat.drop(columns=columns_to_drop)
             logger.info(f"Dropped columns: {columns_to_drop}")
             numeric_cols = [col for col in scale_clean_engineer_dat.columns if col not in exclude_cols and scale_clean_engineer_dat[col].dtype in [np.float64, np.int64]]
+        
+        columns_to_drop = [col for col in scale_clean_engineer_dat.columns if col.startswith('debt_')]
+        if columns_to_drop:
+            scale_clean_engineer_dat = scale_clean_engineer_dat.drop(columns=columns_to_drop)
+            logger.info(f"Dropped columns: {columns_to_drop}")
+            numeric_cols = [col for col in scale_clean_engineer_dat.columns if col not in exclude_cols and scale_clean_engineer_dat[col].dtype in [np.float64, np.int64]]
             
         for col in numeric_cols:
             col_skewness = skew(scale_clean_engineer_dat[col].dropna())

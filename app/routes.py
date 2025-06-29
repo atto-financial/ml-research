@@ -224,7 +224,7 @@ def configure_routes(app):
             if model is None or metrics is None:
                 logger.error("Failed to train random forest model")
                 return jsonify({"error": "Failed to train random forest model"}), 500
-            logger.info({"message": "Final features after RFE", "features": final_features})
+            logger.info({"message": "Final features Model selected", "features": final_features})
     
             importance_df = features_importance(model, scale_clean_engineer_dat[final_features])
             if importance_df.empty:
@@ -315,7 +315,7 @@ def configure_routes(app):
                     'test_precision': metrics_summary['test_precision'],
                     'test_recall': metrics_summary['test_recall'],
                     'test_f1': metrics_summary['test_f1'],
-                    'variance': metrics_summary['cv_score_std'],
+                    'cv_score_std': metrics_summary['cv_score_std'],
                     'overfitting_gap': metrics_summary['overfitting_gap'],
                 },
                 '3.confidence_intervals': {
