@@ -11,4 +11,4 @@ Flask-Cors==5.0.1
 python-dotenv==1.0.1
 matplotlib==3.7.1
 seaborn==0.12.2
-statsmodel==0.14.4
+statsmodels==0.14.2
