@@ -153,7 +153,8 @@ def fsk_answers_v1(answers: Dict, model_path: str = None, scaler_path: str = Non
     except Exception as e:
         logger.error(f"Internal Server Error: {str(e)}", exc_info=True)
         return {"error": f"Internal Server Error: {str(e)}"}, 500
-    
+
+
 def fsk_answers_v2(answers: Dict, model_path: str = None, scaler_path: str = None) -> Tuple[Dict, int]:
     try:
         required_keys = ['fht', 'set', 'kmsi']
