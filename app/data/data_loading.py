@@ -55,8 +55,8 @@ def data_loading_fsk_v1() -> Optional[pd.DataFrame]:
             f.fht_6 AS fht6, 
             f.fht_7 AS fht7, 
             f.fht_8 AS fht8, 
-            f.cdd_9 AS set1, 
-            f.cdd_10 AS set2, 
+            f.set_9 AS set1, 
+            f.set_10 AS set2, 
             f.kmsi_1 AS kmsi1, 
             f.kmsi_2 AS kmsi2, 
             f.kmsi_3 AS kmsi3, 
@@ -68,7 +68,7 @@ def data_loading_fsk_v1() -> Optional[pd.DataFrame]:
             u.user_status AS ust,
             u.id AS user_id
         FROM 
-            fck_answers AS f
+            fsk_answers AS f
         INNER JOIN 
             users AS u ON f.user_id = u.id
         WHERE 
@@ -82,14 +82,6 @@ def data_loading_fsk_v1() -> Optional[pd.DataFrame]:
 
         raw_dat['ust'] = raw_dat['ust'].replace([np.inf, -np.inf], np.nan)  
         raw_dat['ust'] = raw_dat['ust'].fillna(0).astype(np.int64)
-        
-        if 'ubl' in raw_dat.columns and 'ust' in raw_dat.columns:
-            raw_dat.loc[(raw_dat['ubl'] == 1) & (raw_dat['ust'].isna()), 'ust'] = np.int64(1)
-            raw_dat.drop(columns=['ubl'], inplace=True)
-        else:
-            logger.info(f"Columns 'ubl' not found in DataFrame")
-        logger.info(f"DataFrame shape after processing: {raw_dat.shape}")
-        logger.info(f"DataFrame columns after processing: {raw_dat.head(30)}")
         
         return raw_dat
     

@@ -12,6 +12,7 @@ from imblearn.over_sampling import SMOTE, ADASYN, RandomOverSampler, SMOTENC, Bo
 from imblearn.under_sampling import RandomUnderSampler
 from scipy.stats import norm
 from joblib import dump
+from statsmodels.stats.outliers_influence import variance_inflation_factor
 from app.data.data_loading import data_loading_fsk_v1
 from app.data.data_cleaning import data_cleaning_fsk_v1
 from app.data.data_transforming import data_transforming_fsk_v1
@@ -19,14 +20,12 @@ from app.data.data_engineering import data_engineering_fsk_v1
 from app.data.data_preprocessing import data_preprocessing
 from app.models.correlation import compute_correlations
 
-
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[logging.StreamHandler()]
 )
 logger = logging.getLogger(__name__)
-
 
 class ModelConfig:
     def __init__(self, scoring: str = 'recall', oversampling_method: str = 'borderline', custom_params: Optional[Dict] = None):
@@ -82,7 +81,7 @@ def check_class_balance(y: pd.Series, target_col: str) -> bool:
         for class_label, percentage in class_balance.items():
             logger.info(f"Class {class_label}: {class_counts[class_label]} samples ({percentage:.2f}%)")
         balance_ratio = class_counts.min() / class_counts.max()
-        if balance_ratio < 0.2:  # Adjusted for severe imbalance in credit data
+        if balance_ratio < 0.2:
             logger.warning(f"Severe class imbalance detected (ratio: {balance_ratio:.2f}).")
             return False
         return True
@@ -173,14 +172,12 @@ def compute_confidence_intervals(y_true: np.ndarray, y_pred: np.ndarray, y_prob:
             ci_dict.update({f"{m}_ci_upper": 0.0 for m in ['accuracy', 'precision', 'recall', 'f1', 'roc_auc', 'pr_auc']})
             return ci_dict
 
-        # Analytical CI for accuracy
         acc = accuracy_score(y_true, y_pred)
         z = norm.ppf(1 - alpha / 2)
         acc_se = np.sqrt((acc * (1 - acc)) / n_samples)
         acc_ci_lower = max(0.0, acc - z * acc_se)
         acc_ci_upper = min(1.0, acc + z * acc_se)
 
-        # Bootstrap for other metrics
         metrics = {'precision': [], 'recall': [], 'f1': [], 'roc_auc': [], 'pr_auc': []}
         rng = np.random.default_rng(seed=42)
         
@@ -225,7 +222,6 @@ def compute_confidence_intervals(y_true: np.ndarray, y_pred: np.ndarray, y_prob:
 def evaluate_model(model: RandomForestClassifier, X_train: pd.DataFrame, y_train: pd.Series, 
                   X_test: pd.DataFrame, y_test: pd.Series, cv: StratifiedKFold) -> Dict:
     try:
-        # Cross-validation evaluation
         cv_scores = []
         for train_idx, test_idx in cv.split(X_train, y_train):
             X_train_fold, X_test_fold = X_train.iloc[train_idx], X_train.iloc[test_idx]
@@ -253,7 +249,6 @@ def evaluate_model(model: RandomForestClassifier, X_train: pd.DataFrame, y_train
         if cv_metrics['cv_score_std'] > 0.1:
             logger.warning(f"High variance in CV scores (std: {cv_metrics['cv_score_std']:.3f}).")
 
-        # Test set evaluation
         y_pred_test = model.predict(X_test)
         y_prob_test = model.predict_proba(X_test)[:, 1]
         precision_test, recall_test, _ = precision_recall_curve(y_test, y_prob_test)
@@ -283,7 +278,7 @@ def tune_hyperparameters(X: pd.DataFrame, y: pd.Series, config: ModelConfig) -> 
             'n_estimators': config.n_estimators,
             'max_depth': config.max_depth,
             'min_samples_split': config.min_samples_split,
-            'class_weight': ['balanced', {0: 1, 1: 5}, {0: 1, 1: 10}]  # Added for credit risk
+            'class_weight': ['balanced', {0: 1, 1: 5}, {0: 1, 1: 10}]
         }
         base_model = RandomForestClassifier(random_state=config.random_state)
         grid_search = GridSearchCV(
@@ -303,33 +298,157 @@ def tune_hyperparameters(X: pd.DataFrame, y: pd.Series, config: ModelConfig) -> 
         logger.error(f"Unexpected error in hyperparameter tuning: {str(e)}")
         return RandomForestClassifier(random_state=config.random_state, class_weight='balanced')
 
-def final_features (X: pd.DataFrame, y: pd.Series, config: ModelConfig, target_col: str = 'ust') -> Tuple[List[str], Optional[RandomForestClassifier], Dict]:
+def compute_vif(X: pd.DataFrame) -> pd.DataFrame:
+    try:
+        
+        X_numeric = X.select_dtypes(include=['int64', 'float64']).copy()
+        if X_numeric.empty:
+            logger.error("No numeric columns available for VIF calculation.")
+            return pd.DataFrame()
+        
+        if np.linalg.cond(X_numeric.values) > 1e10:  # Check for near-singular matrix
+            logger.warning("Near-singular matrix detected. Adding small noise to stabilize VIF.")
+            X_numeric += np.random.normal(0, 1e-8, X_numeric.shape)
+        
+        X_numeric['intercept'] = 1
+        vif_data = pd.DataFrame()
+        vif_data['feature'] = X_numeric.columns
+        vif_data['VIF'] = [variance_inflation_factor(X_numeric.values, i) 
+                          for i in range(X_numeric.shape[1])]
+        vif_data = vif_data[vif_data['feature'] != 'intercept']
+        
+        vif_data['VIF'] = vif_data['VIF'].replace([np.inf, -np.inf], np.nan)
+        if vif_data['VIF'].isna().any():
+            logger.warning("NaN or infinite VIF values detected. Affected features may be perfectly collinear.")
+            vif_data = vif_data.dropna()
+        
+        logger.info("VIF values:\n" + vif_data.to_string())
+        return vif_data
+    except Exception as e:
+        logger.error(f"Error computing VIF: {str(e)}")
+        return pd.DataFrame()
+
+def handle_multicollinearity(X: pd.DataFrame, y: pd.Series, selected_features: List[str], 
+                            model: RandomForestClassifier, max_vif: float = 2.0) -> Tuple[List[str], List[str], List[str]]:
+    try:
+        
+        model.fit(X[selected_features], y)
+        feature_importance_df = features_importance(model, X[selected_features])
+        if feature_importance_df.empty:
+            logger.error("Failed to compute feature importance for multicollinearity handling.")
+            return selected_features, [], []
+
+        removed_features = []
+        added_features = []
+        current_features = selected_features.copy()
+
+        iteration = 0
+        max_iterations = len(selected_features) * 2  # Prevent infinite loop
+
+        while iteration < max_iterations:
+            
+            vif_data = compute_vif(X[current_features])
+            if vif_data.empty:
+                logger.warning("VIF computation failed. Returning current features.")
+                return current_features, removed_features, added_features
+
+            high_vif_features = vif_data[vif_data['VIF'] > max_vif]['feature'].tolist()
+            if not high_vif_features:
+                logger.info("No multicollinearity detected (all VIF <= 5).")
+                break
+
+            logger.info(f"Iteration {iteration + 1}: Features with high VIF (> {max_vif}): {high_vif_features}")
+
+            high_vif_importance = feature_importance_df[feature_importance_df['feature'].isin(high_vif_features)]
+            if high_vif_importance.empty:
+                logger.warning("No importance data for high VIF features. Breaking loop.")
+                break
+            feature_to_remove = high_vif_importance.loc[high_vif_importance['importance'].idxmin(), 'feature']
+            
+            current_features.remove(feature_to_remove)
+            removed_features.append(feature_to_remove)
+            logger.info(f"Removed feature due to high VIF: {feature_to_remove} (Importance: {high_vif_importance.loc[high_vif_importance['feature'] == feature_to_remove, 'importance'].values[0]:.6f})")
+
+            candidate_features = [f for f in X.columns if f not in current_features]
+            if not candidate_features:
+                logger.warning("No candidate features available for replacement.")
+                break
+
+            temp_model = RandomForestClassifier(**model.get_params())
+            temp_model.fit(X, y)
+            all_importance = features_importance(temp_model, X)
+            candidate_importance = all_importance[all_importance['feature'].isin(candidate_features)]
+            candidate_importance = candidate_importance.sort_values('importance', ascending=False)
+
+            feature_added = False
+            for _, candidate_row in candidate_importance.iterrows():
+                candidate = candidate_row['feature']
+                temp_features = current_features + [candidate]
+                temp_vif = compute_vif(X[temp_features])
+                if temp_vif.empty:
+                    continue
+                if temp_vif['VIF'].max() <= max_vif:
+                    current_features.append(candidate)
+                    added_features.append(candidate)
+                    feature_added = True
+                    logger.info(f"Added feature to replace {feature_to_remove}: {candidate} (Importance: {candidate_row['importance']:.6f}, Max VIF: {temp_vif['VIF'].max():.2f})")
+                    break
+            
+            if current_features:
+                model.fit(X[current_features], y)
+                feature_importance_df = features_importance(model, X[current_features])
+            else:
+                logger.warning("No features left after multicollinearity handling.")
+                break
+
+            iteration += 1
+
+        if iteration >= max_iterations:
+            logger.warning("Max iterations reached in multicollinearity handling. Possible unresolved multicollinearity.")
+
+        logger.info(f"Final features after multicollinearity handling: {current_features}")
+        logger.info(f"Removed features: {removed_features}")
+        logger.info(f"Added features: {added_features}")
+
+        return current_features, removed_features, added_features
+    except Exception as e:
+        logger.error(f"Error handling multicollinearity: {str(e)}")
+        return selected_features, [], []
+
+def final_features(X: pd.DataFrame, y: pd.Series, config: ModelConfig, target_col: str = 'ust') -> Tuple[List[str], Optional[RandomForestClassifier], Dict]:
     try:
         if not validate_dataframe(X, "Feature") or y is None or y.empty:
             return [], None, {}
 
-        # Split data
         X_train, X_test, y_train, y_test = train_test_split(
             X, y, test_size=0.2, random_state=config.random_state, stratify=y
         )
 
-        # Apply oversampling/undersampling after split to avoid data leakage
         X_train, y_train = apply_oversampling(
             X_train, y_train, config.oversampling_method, config.random_state, 
             config.categorical_features, config.use_undersampling
         )
         check_class_balance(y_train, target_col)
 
-        # Tune hyperparameters
         model = tune_hyperparameters(X_train, y_train, config)
 
-        # Use SelectFromModel for feature selection
         selector = SelectFromModel(model, max_features=config.n_features_to_select, threshold="mean")
         selector.fit(X_train, y_train)
-        selected_features = X.columns[selector.get_support()].tolist()
+        selected_features = X_train.columns[selector.get_support()].tolist()
         logger.info(f"SelectFromModel selected {len(selected_features)} features: {selected_features}")
 
-        # Train final model
+        selected_features, removed_features, added_features = handle_multicollinearity(X_train, y_train, selected_features, model)
+
+        final_vif = compute_vif(X_train[selected_features])
+        if not final_vif.empty and final_vif['VIF'].max() > 10:
+            logger.warning(f"Final features still have high VIF: {final_vif[final_vif['VIF'] > 5].to_dict()}")
+        else:
+            logger.info("All final features have VIF <= 2.0")
+
+        if not selected_features:
+            logger.error("No features selected after multicollinearity handling.")
+            return [], None, {}
+
         X_train_selected = X_train[selected_features]
         X_test_selected = X_test[selected_features]
         model.fit(X_train_selected, y_train)
@@ -342,12 +461,14 @@ def final_features (X: pd.DataFrame, y: pd.Series, config: ModelConfig, target_c
         metrics['model_params'] = model.get_params()
         metrics['oversampling_method'] = config.oversampling_method
         metrics['n_features_selected'] = len(selected_features)
+        metrics['vif_values'] = final_vif.to_dict() if not final_vif.empty else {}
+        metrics['removed_features'] = removed_features
+        metrics['added_features'] = added_features
 
         return selected_features, model, metrics
     except Exception as e:
         logger.error(f"Error during feature selection: {str(e)}")
         return [], None, {}
-
 
 def train_model(scale_clean_engineer_dat: pd.DataFrame, selected_features: List[str], 
                 target_col: str = 'ust', scoring: str = 'recall') -> Tuple[Optional[RandomForestClassifier], Optional[Dict]]:
@@ -443,7 +564,10 @@ if __name__ == "__main__":
                                         'roc_auc_ci_upper': [metrics.get('roc_auc_ci_upper', np.nan)],
                                         'model_params': [metrics.get('model_params', {})],
                                         'oversampling_method': [metrics.get('oversampling_method', '')],
-                                        'n_features_selected': [metrics.get('n_features_selected', 0)]
+                                        'n_features_selected': [metrics.get('n_features_selected', 0)],
+                                        'vif_values': [metrics.get('vif_values', {})],
+                                        'removed_features': [metrics.get('removed_features', [])],
+                                        'added_features': [metrics.get('added_features', [])]
                                     })
                                     metrics_path = os.path.join(output_dir, final_metrics_filename)
                                     metrics_df.to_csv(metrics_path, index=False, encoding='utf-8-sig')
