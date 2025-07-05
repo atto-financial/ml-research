@@ -205,6 +205,7 @@ def configure_routes(app):
     def lucis():
         try:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            
             config = ModelConfig()  
 
             paths = setup_paths(timestamp)
