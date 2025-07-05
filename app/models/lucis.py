@@ -19,6 +19,7 @@ from app.data.data_transforming import data_transforming_fsk_v1
 from app.data.data_engineering import data_engineering_fsk_v1
 from app.data.data_preprocessing import data_preprocessing
 from app.models.correlation import compute_correlations
+from app.utils_model import features_importance, validate_data
 
 logging.basicConfig(
     level=logging.INFO,
@@ -28,48 +29,55 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 class ModelConfig:
-    def __init__(self, scoring: str = 'recall', oversampling_method: str = 'borderline', custom_params: Optional[Dict] = None):
-        self.n_estimators = custom_params.get('n_estimators', [50, 100, 200]) if custom_params else [50, 100, 200]
-        self.max_depth = custom_params.get('max_depth', [3, 5, 10, None]) if custom_params else [3, 5, 10, None]
-        self.min_samples_split = custom_params.get('min_samples_split', [2, 5, 10]) if custom_params else [2, 5, 10]
-        self.n_features_to_select = custom_params.get('n_features_to_select', 10) if custom_params else 10
-        self.n_folds = custom_params.get('n_folds', 5) if custom_params else 5
-        self.scoring = scoring
-        self.random_state = 42
-        self.oversampling_method = oversampling_method
-        self.categorical_features = custom_params.get('categorical_features', []) if custom_params else []
-        self.use_undersampling = custom_params.get('use_undersampling', False) if custom_params else False
+    def __init__(self, custom_params: Optional[Dict] = None):
+        custom_params = custom_params or {}
+        self.n_estimators = custom_params.get('n_estimators', [50, 100, 200])
+        self.max_depth = custom_params.get('max_depth', [3, 5, 10, None])
+        self.min_samples_split = custom_params.get('min_samples_split', [2, 5, 10])
+        self.n_features_to_select = custom_params.get('n_features_to_select', 10)
+        self.n_folds = custom_params.get('n_folds', 5)
+        self.scoring = custom_params.get('scoring', 'f1')  
+        self.random_state = custom_params.get('random_state', 42)
+        self.oversampling_method = custom_params.get('oversampling_method', 'borderline')
+        self.categorical_features = custom_params.get('categorical_features', [])
+        self.use_undersampling = custom_params.get('use_undersampling', False)
+        self.max_vif = custom_params.get('max_vif', 1.5)
+        self.n_bootstraps = custom_params.get('n_bootstraps', 500)
+        self.alpha = custom_params.get('alpha', 0.05)
+        self.test_size = custom_params.get('test_size', 0.2)
+        self.memory_threshold = custom_params.get('memory_threshold', 1_000_000_000)
+        self.decision_threshold = custom_params.get('decision_threshold', 0.5)  
+        self.cost_weight = custom_params.get('cost_weight', {0: 1, 1: 1})  
+
+        valid_scoring = ['accuracy', 'precision', 'recall', 'f1', 'roc_auc']
+        if self.scoring not in valid_scoring:
+            logger.error(f"Invalid scoring metric: {self.scoring}. Must be one of {valid_scoring}")
+            raise ValueError(f"Invalid scoring metric: {self.scoring}")
+        if self.n_features_to_select < 1:
+            logger.error(f"n_features_to_select must be positive: {self.n_features_to_select}")
+            raise ValueError(f"n_features_to_select must be positive")
+        if self.n_folds < 2:
+            logger.error(f"n_folds must be at least 2: {self.n_folds}")
+            raise ValueError(f"n_folds must be at least 2")
+        if self.max_vif <= 0:
+            logger.error(f"max_vif must be positive: {self.max_vif}")
+            raise ValueError(f"max_vif must be positive")
+        if self.alpha <= 0 or self.alpha >= 1:
+            logger.error(f"alpha must be between 0 and 1: {self.alpha}")
+            raise ValueError(f"alpha must be between 0 and 1")
+        if self.test_size <= 0 or self.test_size >= 1:
+            logger.error(f"test_size must be between 0 and 1: {self.test_size}")
+            raise ValueError(f"test_size must be between 0 and 1")
+        if self.decision_threshold <= 0 or self.decision_threshold >= 1:
+            logger.error(f"decision_threshold must be between 0 and 1: {self.decision_threshold}")
+            raise ValueError(f"decision_threshold must be between 0 and 1")
 
 def validate_dataframe(df: pd.DataFrame, name: str, target_col: Optional[str] = None, 
                       allow_categorical: bool = False) -> bool:
     try:
-        if df.empty:
-            logger.error(f"DataFrame '{name}' is empty.")
-            return False
-        if target_col is not None:
-            if target_col not in df.columns:
-                logger.error(f"Target column '{target_col}' not found in {name}.")
-                return False
-            if df[target_col].nunique() < 2:
-                logger.error(f"Target column in {name} has {df[target_col].nunique()} unique values.")
-                return False
-        if not allow_categorical and target_col is not None:
-            non_target_cols = df.drop(columns=[target_col]).columns
-            non_numeric_cols = df[non_target_cols].select_dtypes(exclude=['int64', 'float64']).columns
-            if non_numeric_cols.size > 0:
-                logger.error(f"Non-numeric columns found in {name}: {non_numeric_cols.tolist()}.")
-                return False
-        elif not allow_categorical:
-            non_numeric_cols = df.select_dtypes(exclude=['int64', 'float64']).columns
-            if non_numeric_cols.size > 0:
-                logger.error(f"Non-numeric columns found in {name}: {non_numeric_cols.tolist()}.")
-                return False
-        if df.isnull().any().any():
-            logger.error(f"Missing values found in {name}.")
-            return False
-        return True
+        return validate_data(df, name, target_col=target_col, allow_categorical=allow_categorical)
     except Exception as e:
-        logger.error(f"Unexpected error validating DataFrame '{name}': {str(e)}")
+        logger.error(f"Error validating DataFrame '{name}': {str(e)}")
         return False
 
 def check_class_balance(y: pd.Series, target_col: str) -> bool:
@@ -89,35 +97,32 @@ def check_class_balance(y: pd.Series, target_col: str) -> bool:
         logger.error(f"Error checking class balance: {str(e)}")
         return False
     
-def apply_oversampling(X: pd.DataFrame, y: pd.Series, method: str, random_state: int, 
-                      categorical_features: List[str] = None, use_undersampling: bool = False, 
-                      memory_threshold: int = 1_000_000_000) -> Tuple[pd.DataFrame, pd.Series]:
+def apply_oversampling(X: pd.DataFrame, y: pd.Series, config: ModelConfig) -> Tuple[pd.DataFrame, pd.Series]:
     try:
-        categorical_features = categorical_features or []
-        categorical_indices = [X.columns.get_loc(col) for col in categorical_features if col in X.columns]
+        categorical_indices = [X.columns.get_loc(col) for col in config.categorical_features if col in X.columns]
 
-        if X.memory_usage().sum() > memory_threshold:
-            logger.warning(f"Dataset size exceeds {memory_threshold/1e6:.0f}MB. Consider chunking or SMOTENC.")
+        if X.memory_usage().sum() > config.memory_threshold:
+            logger.warning(f"Dataset size exceeds {config.memory_threshold/1e6:.0f}MB. Consider chunking or SMOTENC.")
 
-        if method == 'smote':
-            oversampler = SMOTE(random_state=random_state, k_neighbors=min(3, len(y) - 1))
-        elif method == 'adasyn':
-            oversampler = ADASYN(random_state=random_state, n_neighbors=min(3, len(y) - 1))
-        elif method == 'random':
-            oversampler = RandomOverSampler(random_state=random_state)
-        elif method == 'smotenc' and categorical_features:
-            oversampler = SMOTENC(random_state=random_state, categorical_features=categorical_indices, k_neighbors=min(3, len(y) - 1))
-        elif method == 'borderline':
-            oversampler = BorderlineSMOTE(random_state=random_state, k_neighbors=min(3, len(y) - 1))
+        if config.oversampling_method == 'smote':
+            oversampler = SMOTE(random_state=config.random_state, k_neighbors=min(3, len(y) - 1))
+        elif config.oversampling_method == 'adasyn':
+            oversampler = ADASYN(random_state=config.random_state, n_neighbors=min(3, len(y) - 1))
+        elif config.oversampling_method == 'random':
+            oversampler = RandomOverSampler(random_state=config.random_state)
+        elif config.oversampling_method == 'smotenc' and config.categorical_features:
+            oversampler = SMOTENC(random_state=config.random_state, categorical_features=categorical_indices, k_neighbors=min(3, len(y) - 1))
+        elif config.oversampling_method == 'borderline':
+            oversampler = BorderlineSMOTE(random_state=config.random_state, k_neighbors=min(3, len(y) - 1))
         else:
-            logger.error(f"Unsupported oversampling method: {method}")
+            logger.error(f"Unsupported oversampling method: {config.oversampling_method}")
             return X, y
 
         X_resampled, y_resampled = oversampler.fit_resample(X, y)
-        logger.info(f"Applied {method.upper()}: Resampled data shape: {X_resampled.shape}")
+        logger.info(f"Applied {config.oversampling_method.upper()}: Resampled data shape: {X_resampled.shape}")
 
-        if use_undersampling:
-            undersampler = RandomUnderSampler(random_state=random_state)
+        if config.use_undersampling:
+            undersampler = RandomUnderSampler(random_state=config.random_state)
             X_resampled, y_resampled = undersampler.fit_resample(X_resampled, y_resampled)
             logger.info(f"Applied RandomUnderSampler: Final data shape: {X_resampled.shape}")
 
@@ -129,7 +134,7 @@ def apply_oversampling(X: pd.DataFrame, y: pd.Series, method: str, random_state:
         logger.error(f"Unexpected error in oversampling/undersampling: {str(e)}")
         return X, y
     
-def select_top_features(corr_dat: pd.DataFrame, n: int = 10) -> List[str]:
+def select_top_features(corr_dat: pd.DataFrame, config: ModelConfig) -> List[str]:
     try:
         if not validate_dataframe(corr_dat, "Correlation"):
             return []
@@ -138,8 +143,8 @@ def select_top_features(corr_dat: pd.DataFrame, n: int = 10) -> List[str]:
             return []
         
         sorted_corr = corr_dat.sort_values(by='Spearman', ascending=False)
-        top_positive = sorted_corr[sorted_corr['Spearman'] > 0].head(n).index.tolist()
-        top_negative = sorted_corr[sorted_corr['Spearman'] < 0].tail(n).index.tolist()
+        top_positive = sorted_corr[sorted_corr['Spearman'] > 0].head(config.n_features_to_select).index.tolist()
+        top_negative = sorted_corr[sorted_corr['Spearman'] < 0].tail(config.n_features_to_select).index.tolist()
         selected_features = top_positive + top_negative
         logger.info(f"Selected {len(selected_features)} features: {selected_features}")
         return selected_features
@@ -150,20 +155,8 @@ def select_top_features(corr_dat: pd.DataFrame, n: int = 10) -> List[str]:
         logger.error(f"Unexpected error in select_top_features: {str(e)}")
         return []
 
-def features_importance(model: RandomForestClassifier, X: pd.DataFrame) -> pd.DataFrame:
-    try:
-        feature_importance = pd.DataFrame({
-            'feature': X.columns,
-            'importance': model.feature_importances_
-        }).sort_values('importance', ascending=False)
-        logger.info("Feature Importance:\n" + feature_importance.to_string())
-        return feature_importance
-    except AttributeError as e:
-        logger.error(f"Error calculating feature importance: {str(e)}")
-        return pd.DataFrame()
-
 def compute_confidence_intervals(y_true: np.ndarray, y_pred: np.ndarray, y_prob: np.ndarray, 
-                                n_bootstraps: int = 500, alpha: float = 0.05) -> Dict:
+                                config: ModelConfig) -> Dict:
     try:
         n_samples = len(y_true)
         if n_samples < 10 or len(np.unique(y_true)) < 2:
@@ -173,15 +166,15 @@ def compute_confidence_intervals(y_true: np.ndarray, y_pred: np.ndarray, y_prob:
             return ci_dict
 
         acc = accuracy_score(y_true, y_pred)
-        z = norm.ppf(1 - alpha / 2)
+        z = norm.ppf(1 - config.alpha / 2)
         acc_se = np.sqrt((acc * (1 - acc)) / n_samples)
         acc_ci_lower = max(0.0, acc - z * acc_se)
         acc_ci_upper = min(1.0, acc + z * acc_se)
 
         metrics = {'precision': [], 'recall': [], 'f1': [], 'roc_auc': [], 'pr_auc': []}
-        rng = np.random.default_rng(seed=42)
+        rng = np.random.default_rng(seed=config.random_state)
         
-        for _ in range(n_bootstraps):
+        for _ in range(config.n_bootstraps):
             indices = rng.choice(n_samples, size=n_samples, replace=True)
             y_true_boot = y_true[indices]
             y_pred_boot = y_pred[indices]
@@ -207,8 +200,8 @@ def compute_confidence_intervals(y_true: np.ndarray, y_pred: np.ndarray, y_prob:
                 ci_results[f'{metric}_ci_lower'] = 0.0
                 ci_results[f'{metric}_ci_upper'] = 0.0
             else:
-                ci_lower = np.nanpercentile(values, alpha / 2 * 100)
-                ci_upper = np.nanpercentile(values, 100 - (alpha / 2 * 100))
+                ci_lower = np.nanpercentile(values, config.alpha / 2 * 100)
+                ci_upper = np.nanpercentile(values, 100 - (config.alpha / 2 * 100))
                 ci_results[f'{metric}_ci_lower'] = ci_lower
                 ci_results[f'{metric}_ci_upper'] = ci_upper
                 
@@ -220,8 +213,9 @@ def compute_confidence_intervals(y_true: np.ndarray, y_pred: np.ndarray, y_prob:
         return ci_dict
 
 def evaluate_model(model: RandomForestClassifier, X_train: pd.DataFrame, y_train: pd.Series, 
-                  X_test: pd.DataFrame, y_test: pd.Series, cv: StratifiedKFold) -> Dict:
+                  X_test: pd.DataFrame, y_test: pd.Series, config: ModelConfig) -> Dict:
     try:
+        cv = StratifiedKFold(n_splits=min(config.n_folds, len(y_train)), shuffle=True, random_state=config.random_state)
         cv_scores = []
         for train_idx, test_idx in cv.split(X_train, y_train):
             X_train_fold, X_test_fold = X_train.iloc[train_idx], X_train.iloc[test_idx]
@@ -229,10 +223,11 @@ def evaluate_model(model: RandomForestClassifier, X_train: pd.DataFrame, y_train
             model.fit(X_train_fold, y_train_fold)
             y_prob_fold = model.predict_proba(X_test_fold)[:, 1]
             if len(np.unique(y_test_fold)) > 1:
-                cv_scores.append(recall_score(y_test_fold, model.predict(X_test_fold)))
+                y_pred_fold = (y_prob_fold >= config.decision_threshold).astype(int)
+                cv_scores.append(recall_score(y_test_fold, y_pred_fold))
 
-        y_pred_cv = cross_val_predict(model, X_train, y_train, cv=cv)
         y_prob_cv = cross_val_predict(model, X_train, y_train, cv=cv, method='predict_proba')[:, 1]
+        y_pred_cv = (y_prob_cv >= config.decision_threshold).astype(int)
         precision_cv, recall_cv, _ = precision_recall_curve(y_train, y_prob_cv)
         cv_metrics = {
             'cross_validated_accuracy': accuracy_score(y_train, y_pred_cv),
@@ -249,8 +244,8 @@ def evaluate_model(model: RandomForestClassifier, X_train: pd.DataFrame, y_train
         if cv_metrics['cv_score_std'] > 0.1:
             logger.warning(f"High variance in CV scores (std: {cv_metrics['cv_score_std']:.3f}).")
 
-        y_pred_test = model.predict(X_test)
         y_prob_test = model.predict_proba(X_test)[:, 1]
+        y_pred_test = (y_prob_test >= config.decision_threshold).astype(int)
         precision_test, recall_test, _ = precision_recall_curve(y_test, y_prob_test)
         test_metrics = {
             'test_accuracy': accuracy_score(y_test, y_pred_test),
@@ -259,10 +254,10 @@ def evaluate_model(model: RandomForestClassifier, X_train: pd.DataFrame, y_train
             'test_f1': f1_score(y_test, y_pred_test, zero_division=1),
             'test_roc_auc': roc_auc_score(y_test, y_prob_test) if len(np.unique(y_test)) > 1 else np.nan,
             'test_pr_auc': auc(recall_test, precision_test),
-            'confusion_matrix': confusion_matrix(y_test, y_pred_test)
+            'confusion_matrix': confusion_matrix(y_test, y_pred_test).tolist()
         }
 
-        ci_metrics = compute_confidence_intervals(y_test.values, y_pred_test, y_prob_test)
+        ci_metrics = compute_confidence_intervals(y_test.values, y_pred_test, y_prob_test, config)
 
         if abs(cv_metrics['cross_validated_recall'] - test_metrics['test_recall']) > 0.1:
             logger.warning("Possible overfitting: significant gap in recall between CV and test set.")
@@ -278,7 +273,7 @@ def tune_hyperparameters(X: pd.DataFrame, y: pd.Series, config: ModelConfig) -> 
             'n_estimators': config.n_estimators,
             'max_depth': config.max_depth,
             'min_samples_split': config.min_samples_split,
-            'class_weight': ['balanced', {0: 1, 1: 5}, {0: 1, 1: 10}]
+            'class_weight': ['balanced', config.cost_weight]
         }
         base_model = RandomForestClassifier(random_state=config.random_state)
         grid_search = GridSearchCV(
@@ -293,20 +288,19 @@ def tune_hyperparameters(X: pd.DataFrame, y: pd.Series, config: ModelConfig) -> 
         return grid_search.best_estimator_
     except ValueError as e:
         logger.error(f"Error in hyperparameter tuning: {str(e)}")
-        return RandomForestClassifier(random_state=config.random_state, class_weight='balanced')
+        return RandomForestClassifier(random_state=config.random_state, class_weight=config.cost_weight)
     except Exception as e:
         logger.error(f"Unexpected error in hyperparameter tuning: {str(e)}")
-        return RandomForestClassifier(random_state=config.random_state, class_weight='balanced')
+        return RandomForestClassifier(random_state=config.random_state, class_weight=config.cost_weight)
 
 def compute_vif(X: pd.DataFrame) -> pd.DataFrame:
     try:
-        
         X_numeric = X.select_dtypes(include=['int64', 'float64']).copy()
         if X_numeric.empty:
             logger.error("No numeric columns available for VIF calculation.")
             return pd.DataFrame()
         
-        if np.linalg.cond(X_numeric.values) > 1e10:  # Check for near-singular matrix
+        if np.linalg.cond(X_numeric.values) > 1e10:
             logger.warning("Near-singular matrix detected. Adding small noise to stabilize VIF.")
             X_numeric += np.random.normal(0, 1e-8, X_numeric.shape)
         
@@ -329,9 +323,8 @@ def compute_vif(X: pd.DataFrame) -> pd.DataFrame:
         return pd.DataFrame()
 
 def handle_multicollinearity(X: pd.DataFrame, y: pd.Series, selected_features: List[str], 
-                            model: RandomForestClassifier, max_vif: float = 2.0) -> Tuple[List[str], List[str], List[str]]:
+                            model: RandomForestClassifier, config: ModelConfig) -> Tuple[List[str], List[str], List[str]]:
     try:
-        
         model.fit(X[selected_features], y)
         feature_importance_df = features_importance(model, X[selected_features])
         if feature_importance_df.empty:
@@ -343,21 +336,20 @@ def handle_multicollinearity(X: pd.DataFrame, y: pd.Series, selected_features: L
         current_features = selected_features.copy()
 
         iteration = 0
-        max_iterations = len(selected_features) * 2  # Prevent infinite loop
+        max_iterations = len(selected_features) * 2
 
         while iteration < max_iterations:
-            
             vif_data = compute_vif(X[current_features])
             if vif_data.empty:
                 logger.warning("VIF computation failed. Returning current features.")
                 return current_features, removed_features, added_features
 
-            high_vif_features = vif_data[vif_data['VIF'] > max_vif]['feature'].tolist()
+            high_vif_features = vif_data[vif_data['VIF'] > config.max_vif]['feature'].tolist()
             if not high_vif_features:
-                logger.info("No multicollinearity detected (all VIF <= 5).")
+                logger.info(f"No multicollinearity detected (all VIF <= {config.max_vif}).")
                 break
 
-            logger.info(f"Iteration {iteration + 1}: Features with high VIF (> {max_vif}): {high_vif_features}")
+            logger.info(f"Iteration {iteration + 1}: Features with high VIF (> {config.max_vif}): {high_vif_features}")
 
             high_vif_importance = feature_importance_df[feature_importance_df['feature'].isin(high_vif_features)]
             if high_vif_importance.empty:
@@ -387,7 +379,7 @@ def handle_multicollinearity(X: pd.DataFrame, y: pd.Series, selected_features: L
                 temp_vif = compute_vif(X[temp_features])
                 if temp_vif.empty:
                     continue
-                if temp_vif['VIF'].max() <= max_vif:
+                if temp_vif['VIF'].max() <= config.max_vif:
                     current_features.append(candidate)
                     added_features.append(candidate)
                     feature_added = True
@@ -421,13 +413,10 @@ def final_features(X: pd.DataFrame, y: pd.Series, config: ModelConfig, target_co
             return [], None, {}
 
         X_train, X_test, y_train, y_test = train_test_split(
-            X, y, test_size=0.2, random_state=config.random_state, stratify=y
+            X, y, test_size=config.test_size, random_state=config.random_state, stratify=y
         )
 
-        X_train, y_train = apply_oversampling(
-            X_train, y_train, config.oversampling_method, config.random_state, 
-            config.categorical_features, config.use_undersampling
-        )
+        X_train, y_train = apply_oversampling(X_train, y_train, config)
         check_class_balance(y_train, target_col)
 
         model = tune_hyperparameters(X_train, y_train, config)
@@ -437,13 +426,13 @@ def final_features(X: pd.DataFrame, y: pd.Series, config: ModelConfig, target_co
         selected_features = X_train.columns[selector.get_support()].tolist()
         logger.info(f"SelectFromModel selected {len(selected_features)} features: {selected_features}")
 
-        selected_features, removed_features, added_features = handle_multicollinearity(X_train, y_train, selected_features, model)
+        selected_features, removed_features, added_features = handle_multicollinearity(X_train, y_train, selected_features, model, config)
 
         final_vif = compute_vif(X_train[selected_features])
         if not final_vif.empty and final_vif['VIF'].max() > 10:
             logger.warning(f"Final features still have high VIF: {final_vif[final_vif['VIF'] > 5].to_dict()}")
         else:
-            logger.info("All final features have VIF <= 2.0")
+            logger.info(f"All final features have VIF <= {config.max_vif}")
 
         if not selected_features:
             logger.error("No features selected after multicollinearity handling.")
@@ -453,8 +442,7 @@ def final_features(X: pd.DataFrame, y: pd.Series, config: ModelConfig, target_co
         X_test_selected = X_test[selected_features]
         model.fit(X_train_selected, y_train)
 
-        cv = StratifiedKFold(n_splits=min(config.n_folds, len(y_train)), shuffle=True, random_state=config.random_state)
-        metrics = evaluate_model(model, X_train_selected, y_train, X_test_selected, y_test, cv)
+        metrics = evaluate_model(model, X_train_selected, y_train, X_test_selected, y_test, config)
 
         metrics['best_features'] = selected_features
         metrics['feature_importance'] = features_importance(model, X_train_selected).to_dict()
@@ -464,6 +452,7 @@ def final_features(X: pd.DataFrame, y: pd.Series, config: ModelConfig, target_co
         metrics['vif_values'] = final_vif.to_dict() if not final_vif.empty else {}
         metrics['removed_features'] = removed_features
         metrics['added_features'] = added_features
+        metrics['decision_threshold'] = config.decision_threshold  
 
         return selected_features, model, metrics
     except Exception as e:
@@ -471,7 +460,7 @@ def final_features(X: pd.DataFrame, y: pd.Series, config: ModelConfig, target_co
         return [], None, {}
 
 def train_model(scale_clean_engineer_dat: pd.DataFrame, selected_features: List[str], 
-                target_col: str = 'ust', scoring: str = 'recall') -> Tuple[Optional[RandomForestClassifier], Optional[Dict]]:
+                config: ModelConfig, target_col: str = 'ust') -> Tuple[Optional[RandomForestClassifier], Optional[Dict]]:
     try:
         if not validate_dataframe(scale_clean_engineer_dat, "Input") or not selected_features:
             return None, None
@@ -485,7 +474,6 @@ def train_model(scale_clean_engineer_dat: pd.DataFrame, selected_features: List[
             return None, None
 
         check_class_balance(scale_clean_engineer_dat[target_col], target_col)
-        config = ModelConfig(scoring=scoring)
         best_features, best_model, best_metrics = final_features(
             scale_clean_engineer_dat[selected_features], 
             scale_clean_engineer_dat[target_col], 
@@ -535,9 +523,9 @@ if __name__ == "__main__":
                         dump(scaler, scaler_path)
                         logger.info(f"Saved scaler to {scaler_path}")
                         if validate_dataframe(corr_dat, "Correlation"):
-                            selected_features = select_top_features(corr_dat, n=10)
+                            selected_features = select_top_features(corr_dat, config)
                             if selected_features:
-                                model, metrics = train_model(scale_clean_engineer_dat, selected_features, scoring='roc_auc')
+                                model, metrics = train_model(scale_clean_engineer_dat, selected_features, config)
                                 if model is not None and metrics:
                                     metrics_df = pd.DataFrame({
                                         'accuracy': [metrics.get('test_accuracy', np.nan)],
@@ -567,7 +555,8 @@ if __name__ == "__main__":
                                         'n_features_selected': [metrics.get('n_features_selected', 0)],
                                         'vif_values': [metrics.get('vif_values', {})],
                                         'removed_features': [metrics.get('removed_features', [])],
-                                        'added_features': [metrics.get('added_features', [])]
+                                        'added_features': [metrics.get('added_features', [])],
+                                        'decision_threshold': [metrics.get('decision_threshold', config.decision_threshold)]
                                     })
                                     metrics_path = os.path.join(output_dir, final_metrics_filename)
                                     metrics_df.to_csv(metrics_path, index=False, encoding='utf-8-sig')

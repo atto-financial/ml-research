@@ -42,7 +42,7 @@ def data_engineering_fsk_v1(transform_dat: pd.DataFrame) -> Optional[pd.DataFram
             'saving': ['fht3', 'fht4'],
             'payoff': ['fht5', 'fht6'],
             'planning': ['fht7', 'fht8'],
-            'debt': ['set1', 'set2'],
+            # 'debt': ['set1', 'set2'],
             'loan': ['kmsi1', 'kmsi2'],
             'worship': ['kmsi3', 'kmsi4'],
             'extravagance': ['kmsi5', 'kmsi6'],
@@ -62,18 +62,18 @@ def data_engineering_fsk_v1(transform_dat: pd.DataFrame) -> Optional[pd.DataFram
             
             # engineer_dat[f'{group}_high_score_count'] = (engineer_dat[codes] == 3).sum(axis=1).astype('float64')
             
-            engineer_dat['debt_to_payoff_ratio'] = engineer_dat['debt_score_sum'] / (engineer_dat['payoff_score_sum'] + 1)
+            # engineer_dat['debt_to_payoff_ratio'] = engineer_dat['debt_score_sum'] / (engineer_dat['payoff_score_sum'] + 1)
             engineer_dat['loan_to_saving_ratio'] = engineer_dat['loan_score_sum'] / (engineer_dat['saving_score_sum'] + 1)
             engineer_dat['worship_to_vigilance_ratio'] = engineer_dat['worship_score_sum'] / (engineer_dat['vigilance_score_sum'] + 1)
             engineer_dat['extravagance_to_spending_ratio'] = engineer_dat['extravagance_score_sum'] / (engineer_dat['spending_score_sum'] + 1)
-            engineer_dat['debt_to_saving_ratio'] = engineer_dat['debt_score_sum'] / (engineer_dat['saving_score_sum'] + 1)
+            # engineer_dat['debt_to_saving_ratio'] = engineer_dat['debt_score_sum'] / (engineer_dat['saving_score_sum'] + 1)
             engineer_dat['worship_to_payoff_ratio'] = engineer_dat['worship_score_sum'] / (engineer_dat['payoff_score_sum'] + 1)
 
-            engineer_dat['debt_worship_interaction'] = engineer_dat['debt_score_avg'] * engineer_dat['worship_score_avg']
+            # engineer_dat['debt_worship_interaction'] = engineer_dat['debt_score_avg'] * engineer_dat['worship_score_avg']
             engineer_dat['loan_extravagance_interaction'] = engineer_dat['loan_score_avg'] * engineer_dat['extravagance_score_avg']
             engineer_dat['payoff_planning_interaction'] = engineer_dat['payoff_score_avg'] * engineer_dat['planning_score_avg']
             engineer_dat['spending_vigilance_interaction'] = engineer_dat['spending_score_avg'] * engineer_dat['vigilance_score_avg']
-            engineer_dat['debt_loan_interaction'] = engineer_dat['debt_score_avg'] * engineer_dat['loan_score_avg']
+            # engineer_dat['debt_loan_interaction'] = engineer_dat['debt_score_avg'] * engineer_dat['loan_score_avg']
             engineer_dat['worship_extravagance_interaction'] = engineer_dat['worship_score_avg'] * engineer_dat['extravagance_score_avg']
             
             # engineer_dat[f'{group}_score_var'] = engineer_dat[codes].var(axis=1).fillna(0)
