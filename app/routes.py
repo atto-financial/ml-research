@@ -122,12 +122,10 @@ def configure_routes(app):
             app_label = request_body.get("application_label")
             if not app_label:
                 logger.error(f"Missing application_label in request: {request_body}")
-                logger.error(f"Missing application_label in request: {request_body}")
                 return jsonify({"msg": "application_label is required"}), 400
 
             answers = request_body.get("answers")
             if not answers or not isinstance(answers, dict):
-                logger.error(f"Invalid or missing answers in request: {request_body}")
                 logger.error(f"Invalid or missing answers in request: {request_body}")
                 return jsonify({"msg": "answers is required and must be a dictionary"}), 400
 
@@ -194,7 +192,6 @@ def configure_routes(app):
                     answers, model_path=model_path, scaler_path=scaler_path)
             else:
                 logger.error(f"Unsupported application_label: {application_label}")
-                logger.error(f"Unsupported application_label: {application_label}")
                 return jsonify({"error": f"Unsupported application_label: {application_label}"}), 400
 
             results['application_label'] = application_label
@@ -236,7 +233,6 @@ def configure_routes(app):
                 logger.error("Preprocessing or feature selection failed")
                 return jsonify({"error": "Preprocessing or feature selection failed"}), 500
             logger.info({"message": "Selected features", "features": selected_features})
-            logger.info({"message": "Selected features", "features": selected_features})
 
             model, metrics, final_features = train_and_evaluate_model(
                 scale_clean_engineer_dat, selected_features, config)
@@ -276,7 +272,6 @@ def configure_routes(app):
             }
             for metric, value in metrics_summary.items():
                 if np.isnan(value) or value < 0.0:
-                    logger.warning({"message": f"Invalid {metric}", "value": value})
                     logger.warning({"message": f"Invalid {metric}", "value": value})
                     metrics_summary[metric] = 0.0
             logger.info({"message": "Training metrics", "metrics": metrics_summary})
