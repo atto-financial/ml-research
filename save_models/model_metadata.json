@@ -25,6 +25,10 @@
     "cost_loss": 0.0,
     "final_features": [
         {
+            "feature": "kmsi2",
+            "importance": 0.3656967267552696
+        },
+        {
             "feature": "worship_to_vigilance_ratio",
             "importance": 0.4788360851363712
         },

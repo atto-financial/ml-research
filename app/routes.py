@@ -54,7 +54,7 @@ def preprocess_and_select_features(data: pd.DataFrame, config: ModelConfig) -> T
         if not isinstance(scaler, StandardScaler) or not hasattr(scaler, 'mean_'):
             logger.error("Scaler is not a fitted StandardScaler")
             return None, None, []
-
+        
         corr_dat = compute_correlations(scale_clean_engineer_dat)
         if not validate_data(corr_dat, "Correlation data"):
             logger.error("Failed to compute correlations")
@@ -65,7 +65,7 @@ def preprocess_and_select_features(data: pd.DataFrame, config: ModelConfig) -> T
         if not selected_features:
             logger.error("No features selected")
             return None, None, []
-
+        
         return scale_clean_engineer_dat, scaler, selected_features
     except Exception as e:
         logger.error(f"Error in preprocessing and feature selection: {str(e)}")
@@ -77,12 +77,12 @@ def train_and_evaluate_model(data: pd.DataFrame, features: List[str], config: Mo
         if model is None or metrics is None:
             logger.error("Failed to train model")
             return None, None, []
-
+        
         final_features = metrics.get('best_features', features)
         if not validate_features(final_features, data, "Final features"):
             logger.error(f"Invalid final features: {final_features}")
             return None, None, []
-
+        
         return model, metrics, final_features
     except Exception as e:
         logger.error(f"Error in model training: {str(e)}")
@@ -122,10 +122,12 @@ def configure_routes(app):
             app_label = request_body.get("application_label")
             if not app_label:
                 logger.error(f"Missing application_label in request: {request_body}")
+                logger.error(f"Missing application_label in request: {request_body}")
                 return jsonify({"msg": "application_label is required"}), 400
 
             answers = request_body.get("answers")
             if not answers or not isinstance(answers, dict):
+                logger.error(f"Invalid or missing answers in request: {request_body}")
                 logger.error(f"Invalid or missing answers in request: {request_body}")
                 return jsonify({"msg": "answers is required and must be a dictionary"}), 400
 
@@ -143,12 +145,12 @@ def configure_routes(app):
                 return jsonify(results), 200
 
             elif app_label == "rdf50_m1.0_fsk_f1.0":
-                results, status = fsk_answers_v1(
-                    answers, model_path=model_path, scaler_path=scaler_path)
+                results, status = fsk_answers_v1(answers, model_path=model_path, scaler_path=scaler_path)
                 results['application_label'] = app_label
                 logger.info(f"Processed {app_label}: {results}")
                 return jsonify(results), status
-
+            
+            
             elif app_label == "rdf50_m1.0_fsk_f2.0":
                 results, status = fsk_answers_v2(
                     answers, model_path=model_path, scaler_path=scaler_path)
@@ -162,11 +164,11 @@ def configure_routes(app):
                 results['application_label'] = app_label
                 logger.info(f"Processed {app_label}: {results}")
                 return jsonify(results), status
-
         except Exception as e:
             logger.error(f"Error in /eval: {str(e)}")
             return jsonify({"error": f"Internal Server Error: {str(e)}"}), 500
-
+        
+        
     @app.route('/predict', methods=['POST'])
     def predict():
         try:
@@ -192,6 +194,7 @@ def configure_routes(app):
                     answers, model_path=model_path, scaler_path=scaler_path)
             else:
                 logger.error(f"Unsupported application_label: {application_label}")
+                logger.error(f"Unsupported application_label: {application_label}")
                 return jsonify({"error": f"Unsupported application_label: {application_label}"}), 400
 
             results['application_label'] = application_label
@@ -200,7 +203,7 @@ def configure_routes(app):
         except Exception as e:
             logger.error(f"Error in /predict: {str(e)}", exc_info=True)
             return jsonify({"error": f"Internal Server Error: {str(e)}"}), 500
-
+    
     @app.route('/lucis', methods=['POST'])
     def lucis():
         try:
@@ -232,6 +235,7 @@ def configure_routes(app):
             if scale_clean_engineer_dat is None or scaler is None or not selected_features:
                 logger.error("Preprocessing or feature selection failed")
                 return jsonify({"error": "Preprocessing or feature selection failed"}), 500
+            logger.info({"message": "Selected features", "features": selected_features})
             logger.info({"message": "Selected features", "features": selected_features})
 
             model, metrics, final_features = train_and_evaluate_model(
@@ -273,6 +277,7 @@ def configure_routes(app):
             for metric, value in metrics_summary.items():
                 if np.isnan(value) or value < 0.0:
                     logger.warning({"message": f"Invalid {metric}", "value": value})
+                    logger.warning({"message": f"Invalid {metric}", "value": value})
                     metrics_summary[metric] = 0.0
             logger.info({"message": "Training metrics", "metrics": metrics_summary})
 
@@ -295,7 +300,7 @@ def configure_routes(app):
                 "trained_cv_scoring": metrics_summary[scoring_key],
                 "latest_cv_scoring": latest_cv_scoring
             })
-
+    
             artifact_info = {
                 'scaler_path': '', 'scaler_checksum': '',
                 'model_path': '', 'model_checksum': '',
@@ -309,12 +314,12 @@ def configure_routes(app):
                     "latest_cv_scoring": latest_cv_scoring
                 })
                 artifact_info = save_all_artifacts(
-                    scaler, model, importance_df, final_features, metrics_summary, paths, timestamp
+                    scaler, model, importance_df, final_features, metrics_summary, paths, timestamp  
                 )
                 if artifact_info is None:
                     logger.error("Failed to save artifacts")
                     return jsonify({"error": "Failed to save artifacts"}), 500
-
+    
             package_versions = {
                 'sklearn': sklearn.__version__,
                 'joblib': joblib.__version__
@@ -324,9 +329,10 @@ def configure_routes(app):
 
             final_features_dict = [
                 {'feature': row['feature'], 'importance': float(row['importance'])}
+                {'feature': row['feature'], 'importance': float(row['importance'])}
                 for _, row in importance_df.iterrows()
             ]
-
+    
             response = {
                 '0.model': str(model),
                 '1.latest_cv_scoring': latest_cv_scoring,
@@ -375,7 +381,7 @@ def configure_routes(app):
 
             logger.info({"message": "Training completed successfully", "response": response})
             return jsonify(response), 200
-
+    
         except ValueError as ve:
             logger.error({"message": "ValueError in lucis", "error": str(ve)})
             return jsonify({"error": f"ValueError: {str(ve)}"}), 400
