@@ -18,6 +18,7 @@ spec:
       containers:
         - name: $SERVICE_NAME
           image: $IMAGE_FULL_NAME
+          imagePullPolicy: Always
           ports:
             - containerPort: 5000
           envFrom:
