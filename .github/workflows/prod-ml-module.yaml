@@ -1,9 +1,14 @@
 name: (PROD) Build and Deploy [ml-module]
 
+# on:
+#   push:
+#     tags:
+#       - "*"
+
 on:
   push:
-    tags:
-      - "*"
+    branches:
+      - main
 
 env:
   PROJECT_ID: ${{ vars.GKE_PROJECT_ID }}

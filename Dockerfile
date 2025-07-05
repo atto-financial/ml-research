@@ -39,7 +39,8 @@ COPY ./save_models ./save_models
 COPY ./save_scalers ./save_scalers
 
 EXPOSE 5000
-ENV FLASK_APP=app.app
-ENV FLASK_RUN_HOST=0.0.0.0
 
-CMD ["flask", "run"]
+# ENV FLASK_APP=app.app
+# ENV FLASK_RUN_HOST=0.0.0.0
+
+CMD ["gunicorn", "--workers", "4", "--bind", "0.0.0.0:5000", "app.app:app"]
