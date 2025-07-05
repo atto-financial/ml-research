@@ -329,7 +329,6 @@ def configure_routes(app):
 
             final_features_dict = [
                 {'feature': row['feature'], 'importance': float(row['importance'])}
-                {'feature': row['feature'], 'importance': float(row['importance'])}
                 for _, row in importance_df.iterrows()
             ]
     
