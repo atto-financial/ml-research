@@ -183,7 +183,7 @@ def predict_answers(cus_engineered_data: pd.DataFrame, model_path: str = None, s
             'used_features': list(scaled_df.columns),
             'approvalLoanStatus': 'approved' if int(predictions[0]) == 0 else 'rejected',
             'feeRate': 0.1,
-            'interestRate': round(float(0.125/365), 5),
+            'interestRate': 0.25,
             'maxLoanAmount': 500,
             'maxPayoffDay': 7,
         }
