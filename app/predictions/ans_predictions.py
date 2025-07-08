@@ -180,7 +180,12 @@ def predict_answers(cus_engineered_data: pd.DataFrame, model_path: str = None, s
             'scaler_checksum': paths['scaler_checksum'],
             'model_path': paths['model_path'],
             'model_checksum': paths['model_checksum'],
-            'used_features': list(scaled_df.columns)
+            'used_features': list(scaled_df.columns),
+            'approvalLoanStatus': 'approved' if int(predictions[0]) == 0 else 'rejected',
+            'feeRate': 0.1,
+            'interestRate': 0.25,
+            'maxLoanAmount': 500,
+            'maxPayoffDay': 7,
         }
         logger.info(f"Prediction results: default_probability={results['default_probability']}, "
                    f"model_prediction={results['model_prediction']}, adjust_prediction={results['adjust_prediction']}")
