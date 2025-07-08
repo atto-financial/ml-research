@@ -162,6 +162,13 @@ def configure_routes(app):
                 results['application_label'] = app_label
                 logger.info(f"Processed {app_label}: {results}")
                 return jsonify(results), status
+            
+            elif app_label == "rdf50_v1.0_fk_f1.0":
+              results, status = fsk_answers_v2(
+                  answers, model_path=model_path, scaler_path=scaler_path)
+              results['application_label'] = app_label
+              logger.info(f"Processed {app_label}: {results}")
+              return jsonify(results), status
         except Exception as e:
             logger.error(f"Error in /eval: {str(e)}")
             return jsonify({"error": f"Internal Server Error: {str(e)}"}), 500
