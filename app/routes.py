@@ -163,7 +163,7 @@ def configure_routes(app):
                 logger.info(f"Processed {app_label}: {results}")
                 return jsonify(results), status
             
-            elif app_label == "rdf50_v1.0_fk_f1.0":
+            elif app_label == "rdf50_v1.0_fk_v1.0":
               results, status = fsk_answers_v2(
                   answers, model_path=model_path, scaler_path=scaler_path)
               results['application_label'] = app_label
