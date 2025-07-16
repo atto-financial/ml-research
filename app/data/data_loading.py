@@ -1,52 +1,21 @@
 import pandas as pd
 import numpy as np
 import logging
-from typing import Optional
+from typing import Optional, Union
 from app.utils.db_connection import get_db_connection
-
+from typing import Optional, Union, Iterator
 
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler()
-    ]
+    handlers=[logging.StreamHandler()]
 )
 logger = logging.getLogger(__name__)
 
-
-def data_loading_set_v1()-> Optional[pd.DataFrame]:
+def data_loading_fsk_v1(chunksize: Optional[int] = None) -> Optional[Union[pd.DataFrame, Iterator[pd.DataFrame]]]:
+   
     query = """
         SELECT 
-            c.set_1 AS set1, c.set_2 AS set2, c.set_3 AS set3, c.set_4 AS set4, 
-            c.set_5 AS set5, c.set_6 AS set6, c.set_7 AS set7, c.set_8 AS set8, 
-            c.set_9 AS set9, c.set_10 AS set10, c.set_11 AS set11, 
-            u.latest_loan_payoff_score AS ins, u.user_status AS ust 
-        FROM 
-            set_answers AS c
-        INNER JOIN 
-            users AS u ON c.user_id = u.id
-        WHERE 
-            u.user_status = 1 
-            OR (u.user_status = 0 AND u.payoff_score > 4);
-        """
-    try:
-        conn = get_db_connection() 
-        raw_dat = pd.read_sql(query, conn)
-        logger.info(f"Load data completed")
-        return raw_dat
-    except Exception as e:
-        logger.error(f"Error while executing query: {e}")
-        return None
-    finally:
-        if 'conn' in locals():
-            conn.close()
-
-
-def data_loading_fsk_v1() -> Optional[pd.DataFrame]:
-
-    query = """
-       SELECT 
             f.fht_1 AS fht1, 
             f.fht_2 AS fht2, 
             f.fht_3 AS fht3, 
@@ -76,14 +45,27 @@ def data_loading_fsk_v1() -> Optional[pd.DataFrame]:
             (u.user_status = 0 AND u.user_verified = 3 AND u.payoff_score >= 5 AND f.feature_label = "fsk_v2.0");
     """
     try:
-        conn = get_db_connection() 
-        raw_dat = pd.read_sql(query, conn)
-        logger.info(f"Load raw data completed")
-
-        raw_dat['ust'] = raw_dat['ust'].replace([np.inf, -np.inf], np.nan)  
-        raw_dat['ust'] = raw_dat['ust'].fillna(0).astype(np.int64)
+        conn = get_db_connection()
+        numerical_columns = [
+            'fht1', 'fht2', 'fht3', 'fht4', 'fht5', 'fht6', 'fht7', 'fht8',
+            'set1', 'set2', 'kmsi1', 'kmsi2', 'kmsi3', 'kmsi4', 'kmsi5', 'kmsi6', 'kmsi7', 'kmsi8'
+        ]
+        categorical_columns = ['ust']
         
-        return raw_dat
+        if chunksize:
+            logger.info(f"Loading data in chunks of size {chunksize}")
+            return pd.read_sql(query, conn, chunksize=chunksize)
+        else:
+            logger.info("Loading full dataset")
+            raw_dat = pd.read_sql(query, conn)
+            
+            for col in numerical_columns:
+                raw_dat[col] = raw_dat[col].replace([np.inf, -np.inf], np.nan).fillna(0).astype(np.int64)
+            
+            for col in categorical_columns:
+                raw_dat[col] = raw_dat[col].astype('category')
+            
+            return raw_dat
     
     except Exception as e:
         logger.error(f"Error while executing query: {e}")
@@ -94,11 +76,14 @@ def data_loading_fsk_v1() -> Optional[pd.DataFrame]:
 
 if __name__ == "__main__":
     logger.info("Starting data loading process")
-    raw_dat = data_loading_fsk_v1()
+    raw_dat = data_loading_fsk_v1(chunksize=None)
     if raw_dat is not None:
-        logger.info(f"Raw DataFrame Shape: {raw_dat.shape}")
-        logger.info(f"Raw DataFrame Columns: {raw_dat.columns.tolist()}")
-        logger.info(f"Raw DataFrame Info:\n{raw_dat.info()}")
-        logger.info(f"Raw DataFrame Sample:\n{raw_dat.sample(5).to_string()}")
+        if isinstance(raw_dat, pd.DataFrame):
+            logger.info(f"Raw DataFrame Shape: {raw_dat.shape}")
+            logger.info(f"Raw DataFrame Columns: {raw_dat.columns.tolist()}")
+            logger.info(f"Raw DataFrame Dtypes: {raw_dat.dtypes.to_dict()}")
+            logger.info(f"Raw DataFrame Sample (5 rows):\n{raw_dat.sample(5).to_string()}")
+        else:
+            logger.info("Data loaded as chunk iterator")
     else:
         logger.error("Failed to load data.")

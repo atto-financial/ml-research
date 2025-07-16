@@ -34,7 +34,7 @@ def calculate_checksum(file_path: str) -> str:
         raise
 
 def validate_data(df: Optional[pd.DataFrame], name: str, min_rows: int = 1, min_cols: int = 1, 
-                 target_col: Optional[str] = None, allow_categorical: bool = False, 
+                 target_col: Optional[str] = None, allow_categorical: bool = True, 
                  required_features: Optional[List[str]] = None) -> bool:
     try:
         if df is None:
