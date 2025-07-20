@@ -111,81 +111,11 @@ def get_scaler_instructions(artifact_info: Dict, final_features: List[str], pack
         f"Use decision threshold {decision_threshold} for approval."
     )
 
-<<<<<<< HEAD
 def configure_routes(app):
     @app.route('/')
     def home():
         return render_template('train_model.html')
     
-=======
-
-def configure_routes(app):
-    @app.route('/eval', methods=['POST'])
-    def evaluate():
-        logger.debug("Received request on /eval")
-        try:
-            request_body = request.get_json()
-            if not request_body:
-                logger.error("No JSON data provided in request")
-                return jsonify({"error": "No JSON data provided"}), 400
-
-            app_label = request_body.get("application_label")
-            if not app_label:
-                logger.error(
-                    f"Missing application_label in request: {request_body}")
-                return jsonify({"msg": "application_label is required"}), 400
-
-            answers = request_body.get("answers")
-            if not answers or not isinstance(answers, dict):
-                logger.error(
-                    f"Invalid or missing answers in request: {request_body}")
-                return jsonify({"msg": "answers is required and must be a dictionary"}), 400
-
-            model_path = request_body.get("model_path")
-            scaler_path = request_body.get("scaler_path")
-
-            if app_label in ["set_f1.0_score", "set_f1.0_criteria"]:
-                results = set_answers_v1(answers)
-                logger.info(f"Processed {app_label}: {results}")
-                return jsonify(results), 200
-
-            elif app_label == "rdf50_m1.2_set_f1.0":
-                results = set_answers_v2(answers)
-                logger.info(f"Processed {app_label}: {results}")
-                return jsonify(results), 200
-
-            elif app_label == "rdf50_m1.0_fsk_f1.0":
-                results, status = fsk_answers_v1(
-                    answers, model_path=model_path, scaler_path=scaler_path)
-                results['application_label'] = app_label
-                logger.info(f"Processed {app_label}: {results}")
-                return jsonify(results), status
-
-            elif app_label == "rdf50_m1.0_fsk_f2.0":
-                results, status = fsk_answers_v2(
-                    answers, model_path=model_path, scaler_path=scaler_path)
-                results['application_label'] = app_label
-                logger.info(f"Processed {app_label}: {results}")
-                return jsonify(results), status
-
-            elif app_label == "rdf50_m2.0_fk_f1.0":
-                results, status = fsk_answers_v2(
-                    answers, model_path=model_path, scaler_path=scaler_path)
-                results['application_label'] = app_label
-                logger.info(f"Processed {app_label}: {results}")
-                return jsonify(results), status
-
-            elif app_label == "rdf50_v1.0_fk_v1.0":
-                results, status = fsk_answers_v2(
-                    answers, model_path=model_path, scaler_path=scaler_path)
-                results['application_label'] = app_label
-                logger.info(f"Processed {app_label}: {results}")
-                return jsonify(results), status
-        except Exception as e:
-            logger.error(f"Error in /eval: {str(e)}")
-            return jsonify({"error": f"Internal Server Error: {str(e)}"}), 500
-
->>>>>>> 222f6da8bed60c6fdf77e991e9a330d7adeec9bc
     @app.route('/predict', methods=['POST'])
     def predict():
         try:
@@ -216,14 +146,6 @@ def configure_routes(app):
                 logger.error(
                     f"Unsupported application_label: {application_label}")
                 return jsonify({"error": f"Unsupported application_label: {application_label}"}), 400
-<<<<<<< HEAD
-=======
-
-            results['application_label'] = application_label
-            logger.info(
-                f"Prediction successful for application_label: {application_label}")
-            return jsonify(results), status
->>>>>>> 222f6da8bed60c6fdf77e991e9a330d7adeec9bc
         except Exception as e:
             logger.error(f"Error in /predict: {str(e)}", exc_info=True)
             return jsonify({"error": f"Internal Server Error: {str(e)}"}), 500
@@ -232,13 +154,8 @@ def configure_routes(app):
     def lucis():
         try:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-<<<<<<< HEAD
             
             config = ModelConfig() 
-=======
-
-            config = ModelConfig()
->>>>>>> 222f6da8bed60c6fdf77e991e9a330d7adeec9bc
 
             paths = setup_paths(timestamp)
             paths_ok, error_msg = ensure_paths(paths)
@@ -366,14 +283,11 @@ def configure_routes(app):
 
             final_features_dict = [
                 {'feature': row['feature'],
-                    'importance': float(row['importance'])}
+                 'importance': float(row['importance'])}  # Fixed 'r dow' to 'row'
                 for _, row in importance_df.iterrows()
             ]
-<<<<<<< HEAD
     
             latest_metadata = load_latest_model_metadata(paths['model'][0])
-=======
->>>>>>> 222f6da8bed60c6fdf77e991e9a330d7adeec9bc
 
             response = {
                 '0.model': str(model),

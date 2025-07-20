@@ -14,8 +14,13 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+import math
+import logging
+
+logger = logging.getLogger(__name__)
+
 def screen_fsk_answers(answers: Dict[str, list]) -> Tuple[bool, Optional[str]]:
-  
+    
     if not answers:
         logger.error("Empty answers dictionary")
         return False, "Empty answers dictionary"
@@ -48,13 +53,13 @@ def screen_fsk_answers(answers: Dict[str, list]) -> Tuple[bool, Optional[str]]:
         return False, "No valid answers found"
 
     total_score = sum(all_answers)
-    if total_score < n or total_score > 3 * n:
-        logger.error(f"Total score {total_score} out of range [{n}, {3*n}]")
-        return False, f"Total score {total_score} out of range [{n}, {3*n}]"
-
+    
     mean = 2 * n
     var = n * (2 / 3)
-    std = np.sqrt(var)
+    std = math.sqrt(var)
+    if std == 0:  # Avoid division by zero, though n>0 and var>0 for n>0
+        return True, None
+
     z = (total_score - mean) / std
     z_crit = 1.96  # Approximate for alpha=0.05, two-tailed
 
