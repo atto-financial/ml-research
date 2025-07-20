@@ -1,11 +1,12 @@
 import logging
+import math
 from typing import Dict, Tuple, Optional, List
 import numpy as np
 import pandas as pd
 from pathlib import Path
 from joblib import load
 from sklearn.preprocessing import StandardScaler
-from app.utils_model import validate_features, get_artifact_paths, load_and_verify_artifact  
+from app.utils_model import validate_features, get_artifact_paths, load_and_verify_artifact
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -14,13 +15,22 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-import math
-import logging
-
-logger = logging.getLogger(__name__)
-
-def screen_fsk_answers(answers: Dict[str, list]) -> Tuple[bool, Optional[str]]:
+def count_ways(n: int) -> List[int]:
     
+    dp = [0] * (3 * n + 1)
+    dp[0] = 1 # 0 dice sum 0
+    for _ in range(n):
+        new_dp = [0] * (3 * n + 1)
+        for s in range(len(dp)):
+            if dp[s] > 0:
+                for v in range(1, 4):
+                    if s + v < len(new_dp):
+                        new_dp[s + v] += dp[s]
+        dp = new_dp
+    return dp
+
+def screen_fsk_answers(answers: Dict[str, List[str]]) -> Tuple[bool, Optional[str]]:
+
     if not answers:
         logger.error("Empty answers dictionary")
         return False, "Empty answers dictionary"
@@ -41,9 +51,9 @@ def screen_fsk_answers(answers: Dict[str, list]) -> Tuple[bool, Optional[str]]:
             logger.error(f"Values in {key} must be between 1 and 3")
             return False, f"Values in {key} must be between 1 and 3"
         
-        # if len(set(vals)) == 1:
-        #     logger.warning(f"All answers identical in {key}")
-        #     return False, f"All answers identical in {key}"
+        if len(set(vals)) == 1:
+            logger.warning(f"All answers identical in {key}")
+            return False, f"All answers identical in {key}"
         
         all_answers.extend(vals)
 
@@ -55,17 +65,38 @@ def screen_fsk_answers(answers: Dict[str, list]) -> Tuple[bool, Optional[str]]:
     total_score = sum(all_answers)
     
     mean = 2 * n
-    var = n * (2 / 3)
-    std = math.sqrt(var)
-    if std == 0:  # Avoid division by zero, though n>0 and var>0 for n>0
-        return True, None
-
-    z = (total_score - mean) / std
-    z_crit = 1.96  # Approximate for alpha=0.05, two-tailed
-
-    if abs(z) > z_crit:
-        logger.warning(f"Suspicious score: z={z:.2f}, |z| > {z_crit}")
-        return False, f"Suspicious score: z={z:.2f}"
+    min_sum = n
+    max_sum = 3 * n
+    
+    if n < 30:
+        # Exact test 
+        dp = count_ways(n)
+        total_ways = sum(dp)  # Should be 3**n
+        # Due to symmetry, P(sum <= total) = P(sum >= (4*n - total))
+        if total_score < mean:
+            low_tail = sum(dp[min_sum: total_score + 1])
+            high_tail = sum(dp[4*n - total_score: max_sum + 1])
+        elif total_score > mean:
+            high_tail = sum(dp[total_score: max_sum + 1])
+            low_tail = sum(dp[min_sum: 4*n - total_score + 1])
+        else:
+            return True, None  
+        
+        p_value = (low_tail + high_tail) / total_ways
+        if p_value < 0.05:
+            logger.warning(f"Suspicious score: exact p={p_value:.4f} < 0.05")
+            return False, f"Suspicious score: exact p={p_value:.4f}"
+    else:
+        # Z-test 
+        var = n * (2 / 3)
+        std = math.sqrt(var)
+        if std == 0:  
+            return True, None
+        z = (total_score - mean) / std
+        z_crit = 1.96  # For alpha=0.05, two-tailed
+        if abs(z) > z_crit:
+            logger.warning(f"Suspicious score: z={z:.2f}, |z| > {z_crit}")
+            return False, f"Suspicious score: z={z:.2f}"
 
     logger.info("Answers passed screening")
     return True, None

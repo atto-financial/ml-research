@@ -9,8 +9,7 @@ from app.data.data_transforming import data_transforming_fsk_v1
 from app.data.data_engineering import data_engineering_fsk_v1
 from app.utils_model import validate_data
 from app.utils_model import get_artifact_paths, load_and_verify_artifact, load
-from app.prediction.utils_prediction import screen_fsk_answers, predict_answers, load_model
-
+from app.prediction.utils_prediction import screen_fsk_answers, predict_answers
 
 logging.basicConfig(
     level=logging.DEBUG,

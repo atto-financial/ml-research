@@ -48,7 +48,6 @@ def run_data_pipeline() -> Optional[pd.DataFrame]:
             return None
     return raw_dat
 
-
 def preprocess_and_select_features(data: pd.DataFrame, config: ModelConfig) -> Tuple[Optional[pd.DataFrame], Optional[StandardScaler], List[str]]:
     try:
         scale_clean_engineer_dat, scaler = data_preprocessing(data)
