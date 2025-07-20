@@ -326,6 +326,14 @@ def load_latest_model_metadata(model_dir: str) -> Dict:
                 logger.warning(f"Invalid importance for {item['feature']}: {item['importance']}. Setting final_features to []")
                 metadata['final_features'] = []
                 break
+
+        if 'timestamp' not in metadata:
+            logger.warning("timestamp missing in metadata. Setting to ''")
+            metadata['timestamp'] = ''
+        if not isinstance(metadata['timestamp'], str):
+            logger.warning(f"Invalid timestamp: {metadata['timestamp']}. Setting to ''")
+            metadata['timestamp'] = ''
+
         logger.info(f"Loaded metadata from {metadata_path}")
         return metadata
     except (FileNotFoundError, json.JSONDecodeError) as e:

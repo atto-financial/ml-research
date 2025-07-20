@@ -68,13 +68,13 @@ def data_engineering_fsk_v1(
             if zero_variance_before:
                 logger.info(f"Found {len(zero_variance_before)} features with zero variance before: {zero_variance_before}")
 
-            # Define groups (hard-coded)
+            # Define groups 
             groups = {
                 'spending': ['fht1', 'fht2'],
-                'saving': ['fht3', 'fht4'],
+                'saving': ['fht3', 'fht4'], 
                 'payoff': ['fht5', 'fht6'],
                 'planning': ['fht7', 'fht8'],
-                'debt': ['set1', 'set2'],
+                # 'debt': ['set1', 'set2'],
                 'loan': ['kmsi1', 'kmsi2'],
                 'worship': ['kmsi3', 'kmsi4'],
                 'extravagance': ['kmsi5', 'kmsi6'],
@@ -91,25 +91,25 @@ def data_engineering_fsk_v1(
             for group, cols in groups.items():
                 engineer_dat = create_group_features(engineer_dat, group, cols)
 
-            # Create ratio features (hard-coded)
+            # Create ratio features 
             ratios = [
-                ('debt_to_payoff_ratio', 'debt_score_sum', 'payoff_score_sum'),
+                # ('debt_to_payoff_ratio', 'debt_score_sum', 'payoff_score_sum'),
                 ('loan_to_saving_ratio', 'loan_score_sum', 'saving_score_sum'),
                 ('worship_to_vigilance_ratio', 'worship_score_sum', 'vigilance_score_sum'),
                 ('extravagance_to_spending_ratio', 'extravagance_score_sum', 'spending_score_sum'),
-                ('debt_to_saving_ratio', 'debt_score_sum', 'saving_score_sum'),
+                # ('debt_to_saving_ratio', 'debt_score_sum', 'saving_score_sum'),
                 ('worship_to_payoff_ratio', 'worship_score_sum', 'payoff_score_sum')
             ]
             for ratio_name, num_col, denom_col in ratios:
                 engineer_dat[ratio_name] = engineer_dat[num_col] / (engineer_dat[denom_col] + 1)
 
-            # Create interaction features (hard-coded)
+            # Create interaction features
             interactions = [
-                ('debt_worship_interaction', 'debt_score_avg', 'worship_score_avg'),
+                # ('debt_worship_interaction', 'debt_score_avg', 'worship_score_avg'),
                 ('loan_extravagance_interaction', 'loan_score_avg', 'extravagance_score_avg'),
                 ('payoff_planning_interaction', 'payoff_score_avg', 'planning_score_avg'),
                 ('spending_vigilance_interaction', 'spending_score_avg', 'vigilance_score_avg'),
-                ('debt_loan_interaction', 'debt_score_avg', 'loan_score_avg'),
+                # ('debt_loan_interaction', 'debt_score_avg', 'loan_score_avg'),
                 ('worship_extravagance_interaction', 'worship_score_avg', 'extravagance_score_avg')
             ]
             for inter_name, col1, col2 in interactions:

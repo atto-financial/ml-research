@@ -1,11 +1,11 @@
-import pandas as pd
-import numpy as np
 import logging
+from typing import Dict, Tuple, Optional, List
+import numpy as np
+import pandas as pd
 from pathlib import Path
-from typing import Tuple, Optional, List
 from joblib import load
 from sklearn.preprocessing import StandardScaler
-from app.utils_model import validate_features  
+from app.utils_model import validate_features, get_artifact_paths, load_and_verify_artifact  
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -14,24 +14,81 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-def load_model(model_path: Path) -> object:
+def screen_fsk_answers(answers: Dict[str, list]) -> Tuple[bool, Optional[str]]:
+  
+    if not answers:
+        logger.error("Empty answers dictionary")
+        return False, "Empty answers dictionary"
+
+    all_answers = []
+    for key, vals in answers.items():
+        if not isinstance(vals, list) or not vals:
+            logger.error(f"Invalid or empty list for {key}")
+            return False, f"Invalid or empty list for {key}"
+        
+        try:
+            vals = [int(v) for v in vals]
+        except ValueError:
+            logger.error(f"Non-integer values in {key}")
+            return False, f"Non-integer values in {key}"
+        
+        if not all(1 <= v <= 3 for v in vals):
+            logger.error(f"Values in {key} must be between 1 and 3")
+            return False, f"Values in {key} must be between 1 and 3"
+        
+        # if len(set(vals)) == 1:
+        #     logger.warning(f"All answers identical in {key}")
+        #     return False, f"All answers identical in {key}"
+        
+        all_answers.extend(vals)
+
+    n = len(all_answers)
+    if n == 0:
+        logger.error("No valid answers found")
+        return False, "No valid answers found"
+
+    total_score = sum(all_answers)
+    if total_score < n or total_score > 3 * n:
+        logger.error(f"Total score {total_score} out of range [{n}, {3*n}]")
+        return False, f"Total score {total_score} out of range [{n}, {3*n}]"
+
+    mean = 2 * n
+    var = n * (2 / 3)
+    std = np.sqrt(var)
+    z = (total_score - mean) / std
+    z_crit = 1.96  # Approximate for alpha=0.05, two-tailed
+
+    if abs(z) > z_crit:
+        logger.warning(f"Suspicious score: z={z:.2f}, |z| > {z_crit}")
+        return False, f"Suspicious score: z={z:.2f}"
+
+    logger.info("Answers passed screening")
+    return True, None
+
+def load_model(model_path: Path, expected_checksum: Optional[str] = None) -> object:
     try:
         if not model_path.exists():
             raise FileNotFoundError(f"Model file not found: {model_path}")
-        model = load(str(model_path))
+        if expected_checksum:
+            model = load_and_verify_artifact(str(model_path), expected_checksum)
+        else:
+            model = load(str(model_path))
         logger.info(f"Loaded model from {model_path}")
         return model
     except Exception as e:
         logger.error(f"Failed to load model from {model_path}: {str(e)}", exc_info=True)
         raise
 
-def load_scaler(scaler_path: Path) -> StandardScaler:
+def load_scaler(scaler_path: Path, expected_checksum: Optional[str] = None) -> StandardScaler:
     try:
         if not scaler_path.exists():
             raise FileNotFoundError(f"Scaler file not found: {scaler_path}")
-        scaler = load(str(scaler_path))
-        if not isinstance(scaler, StandardScaler):
-            raise TypeError(f"Loaded scaler is not a StandardScaler: {type(scaler)}")
+        if expected_checksum:
+            scaler = load_and_verify_artifact(str(scaler_path), expected_checksum, expected_type=StandardScaler)
+        else:
+            scaler = load(str(scaler_path))
+            if not isinstance(scaler, StandardScaler):
+                raise TypeError(f"Loaded scaler is not a StandardScaler: {type(scaler)}")
         logger.info(f"Loaded scaler from {scaler_path}")
         return scaler
     except Exception as e:
@@ -63,11 +120,15 @@ def scaler_function(cus_engineered_data: pd.DataFrame, scaler: StandardScaler, e
         if scaler_features is None:
             logger.error("Scaler does not have 'feature_names_in_' attribute")
             return None
+        
         input_features = set(cus_engineered_data.columns)
         missing_features = set(scaler_features) - input_features
         if missing_features:
-            logger.error(f"Input data missing {len(missing_features)} features required by scaler: {missing_features}")
-            return None
+            logger.warning(f"Missing {len(missing_features)} features for scaler: {missing_features}. Filling with mean values.")
+            for feature in missing_features:
+                mean_val = scaler.mean_[list(scaler_features).index(feature)]
+                cus_engineered_data[feature] = mean_val  # Fill with scaler's mean for that feature
+        
         extra_features = input_features - set(scaler_features)
         if extra_features:
             logger.warning(f"Input data has {len(extra_features)} extra features: {extra_features}")
@@ -93,10 +154,17 @@ def scaler_function(cus_engineered_data: pd.DataFrame, scaler: StandardScaler, e
         logger.error(f"Unexpected error in scaler_function: {str(e)}", exc_info=True)
         return None
 
-def prediction_function(model: object, scaled_cus_data: pd.DataFrame, adjusted_threshold: float = 0.75) -> Tuple[Optional[np.ndarray], Optional[np.ndarray], Optional[np.ndarray]]:
+def prediction_function(
+    model: object,
+    cus_data: pd.DataFrame,
+    scale_data: bool = False,
+    scaler: Optional[StandardScaler] = None,
+    expected_features: Optional[List[str]] = None,
+    adjusted_threshold: float = 0.75
+) -> Tuple[Optional[np.ndarray], Optional[np.ndarray], Optional[np.ndarray]]:
     try:
-        if scaled_cus_data is None or scaled_cus_data.empty:
-            logger.error("Scaled data is None or empty")
+        if cus_data is None or cus_data.empty:
+            logger.error("Data is None or empty")
             return None, None, None
 
         if not hasattr(model, 'feature_names_in_'):
@@ -104,25 +172,40 @@ def prediction_function(model: object, scaled_cus_data: pd.DataFrame, adjusted_t
             return None, None, None
 
         model_features = list(model.feature_names_in_)
-        scaled_cus_features = set(scaled_cus_data.columns)
-        missing = set(model_features) - scaled_cus_features
+
+        if scale_data:
+            if scaler is None:
+                logger.error("Scaler is required when scale_data=True")
+                return None, None, None
+            if expected_features is None:
+                expected_features = model_features 
+            scaled_data = scaler_function(cus_data, scaler, expected_features)
+            if scaled_data is None:
+                logger.error("Failed to scale data")
+                return None, None, None
+            data_for_predict = scaled_data
+        else:
+            data_for_predict = cus_data
+
+        # Check features for predict
+        data_features = set(data_for_predict.columns)
+        missing = set(model_features) - data_features
         if missing:
             logger.error(f"Missing {len(missing)} features required by model: {missing}")
             return None, None, None
-        extra = scaled_cus_features - set(model_features)
+        extra = data_features - set(model_features)
         if extra:
-            logger.warning(f"Extra features in scaled data: {extra}")
-            scaled_cus_data = scaled_cus_data[model_features]
+            logger.warning(f"Extra features in data: {extra}")
+            data_for_predict = data_for_predict[model_features]
 
-        scaled_cus_data = scaled_cus_data[model_features]
-        logger.debug(f"Prediction input shape: {scaled_cus_data.shape}, columns: {list(scaled_cus_data.columns)}")
+        logger.debug(f"Prediction input shape: {data_for_predict.shape}, columns: {list(data_for_predict.columns)}")
 
-        predictions = model.predict(scaled_cus_data)
+        predictions = model.predict(data_for_predict)
         if predictions is None or len(predictions) == 0:
             logger.error("Model predict returned None or empty array")
             return None, None, None
         
-        probabilities = model.predict_proba(scaled_cus_data)[:, 1]
+        probabilities = model.predict_proba(data_for_predict)[:, 1]
         if probabilities is None or len(probabilities) == 0:
             logger.error("Model predict_proba returned None or empty array")
             return None, None, None
@@ -131,11 +214,12 @@ def prediction_function(model: object, scaled_cus_data: pd.DataFrame, adjusted_t
         logger.info(f"Predictions made: predictions={predictions.tolist()}, "
                    f"probabilities={probabilities.tolist()}, adjusted={predictions_adjusted.tolist()}")
         return predictions, probabilities, predictions_adjusted
+
     except ValueError as ve:
-        logger.error(f"ValueError in prediction_function: {str(ve)}", exc_info=True)
+        logger.error(f"ValueError in unified_prediction_function: {str(ve)}", exc_info=True)
         return None, None, None
     except Exception as e:
-        logger.error(f"Unexpected error in prediction_function: {str(e)}", exc_info=True)
+        logger.error(f"Unexpected error in unified_prediction_function: {str(e)}", exc_info=True)
         return None, None, None
 
 def predict_answers(cus_engineered_data: pd.DataFrame, model_path: str = None, scaler_path: str = None) -> Tuple[dict, int]:
@@ -158,8 +242,10 @@ def predict_answers(cus_engineered_data: pd.DataFrame, model_path: str = None, s
         else:
             scaler_path = Path(scaler_path)
 
-        scaler = load_scaler(scaler_path)
-        model = load_model(model_path)
+        paths = get_artifact_paths(model_dir="save_models", model_path=str(model_path), scaler_path=str(scaler_path))
+        
+        scaler = load_scaler(scaler_path, paths.get('scaler_checksum'))
+        model = load_model(model_path, paths.get('model_checksum'))
 
         if not hasattr(model, 'feature_names_in_'):
             logger.error("Model does not have feature_names_in_ attribute")

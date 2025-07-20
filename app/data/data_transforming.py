@@ -115,10 +115,10 @@ def data_transforming_fsk_v1(
                     'columns': ['fht1', 'fht2', 'fht3', 'fht4', 'fht5', 'fht6', 'fht7', 'fht8'],
                     'mapping': {1: 3, 2: 2, 3: 1}
                 },
-                'set': {
-                    'columns': ['set1', 'set2'],
-                    'mapping': {1: 1, 2: 2, 3: 3}
-                },
+                # 'set': {
+                #     'columns': ['set1', 'set2'],
+                #     'mapping': {1: 1, 2: 2, 3: 3}
+                # },
                 'kmsi16': {
                     'columns': ['kmsi1', 'kmsi2', 'kmsi3', 'kmsi4', 'kmsi5', 'kmsi6'],
                     'mapping': {1: 1, 2: 2, 3: 3}

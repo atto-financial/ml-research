@@ -1,3 +1,4 @@
+import json
 from flask import request, jsonify, render_template
 import pandas as pd
 import numpy as np
@@ -11,7 +12,7 @@ from app.data.data_preprocessing import data_preprocessing
 from app.models.correlation import compute_correlations
 from app.models.lucis import train_model, select_top_features, ModelConfig
 from app.utils_model import ensure_paths, load_latest_model_metadata, save_all_artifacts, features_importance, validate_data, validate_features, setup_paths
-from app.predictions.ans_transformimg import set_answers_v1, set_answers_v2, fsk_answers_v1, fsk_answers_v2
+from app.prediction.ans_prediction import fk_answers_v1
 from typing import Dict, Tuple, List, Optional
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestClassifier
@@ -109,71 +110,7 @@ def configure_routes(app):
     @app.route('/')
     def home():
         return render_template('train_model.html')
-
-    @app.route('/eval', methods=['POST'])
-    def evaluate():
-        logger.debug("Received request on /eval")
-        try:
-            request_body = request.get_json()
-            if not request_body:
-                logger.error("No JSON data provided in request")
-                return jsonify({"error": "No JSON data provided"}), 400
-
-            app_label = request_body.get("application_label")
-            if not app_label:
-                logger.error(f"Missing application_label in request: {request_body}")
-                return jsonify({"msg": "application_label is required"}), 400
-
-            answers = request_body.get("answers")
-            if not answers or not isinstance(answers, dict):
-                logger.error(f"Invalid or missing answers in request: {request_body}")
-                return jsonify({"msg": "answers is required and must be a dictionary"}), 400
-
-            model_path = request_body.get("model_path")
-            scaler_path = request_body.get("scaler_path")
-
-            if app_label in ["set_f1.0_score", "set_f1.0_criteria"]:
-                results = set_answers_v1(answers)
-                logger.info(f"Processed {app_label}: {results}")
-                return jsonify(results), 200
-
-            elif app_label == "rdf50_m1.2_set_f1.0":
-                results = set_answers_v2(answers)
-                logger.info(f"Processed {app_label}: {results}")
-                return jsonify(results), 200
-
-            elif app_label == "rdf50_m1.0_fsk_f1.0":
-                results, status = fsk_answers_v1(answers, model_path=model_path, scaler_path=scaler_path)
-                results['application_label'] = app_label
-                logger.info(f"Processed {app_label}: {results}")
-                return jsonify(results), status
-            
-            
-            elif app_label == "rdf50_m1.0_fsk_f2.0":
-                results, status = fsk_answers_v2(
-                    answers, model_path=model_path, scaler_path=scaler_path)
-                results['application_label'] = app_label
-                logger.info(f"Processed {app_label}: {results}")
-                return jsonify(results), status
-
-            elif app_label == "rdf50_m2.0_fk_f1.0":
-                results, status = fsk_answers_v2(
-                    answers, model_path=model_path, scaler_path=scaler_path)
-                results['application_label'] = app_label
-                logger.info(f"Processed {app_label}: {results}")
-                return jsonify(results), status
-            
-            elif app_label == "rdf50_v1.0_fk_v1.0":
-              results, status = fsk_answers_v2(
-                  answers, model_path=model_path, scaler_path=scaler_path)
-              results['application_label'] = app_label
-              logger.info(f"Processed {app_label}: {results}")
-              return jsonify(results), status
-        except Exception as e:
-            logger.error(f"Error in /eval: {str(e)}")
-            return jsonify({"error": f"Internal Server Error: {str(e)}"}), 500
-        
-        
+    
     @app.route('/predict', methods=['POST'])
     def predict():
         try:
@@ -194,16 +131,15 @@ def configure_routes(app):
                 logger.error("Answers dictionary is empty")
                 return jsonify({"error": "Answers dictionary is empty"}), 400
 
-            if application_label == "rdf50_m1.0_fsk_f1.0":
-                results, status = fsk_answers_v1(
+            if application_label == "rdf50_v2.0_fk_v1.0":
+                results, status = fk_answers_v1(
                     answers, model_path=model_path, scaler_path=scaler_path)
+                results['application_label'] = application_label
+                logger.info(f"Prediction successful for application_label: {application_label}")
+                return jsonify(results), status
             else:
                 logger.error(f"Unsupported application_label: {application_label}")
                 return jsonify({"error": f"Unsupported application_label: {application_label}"}), 400
-
-            results['application_label'] = application_label
-            logger.info(f"Prediction successful for application_label: {application_label}")
-            return jsonify(results), status
         except Exception as e:
             logger.error(f"Error in /predict: {str(e)}", exc_info=True)
             return jsonify({"error": f"Internal Server Error: {str(e)}"}), 500
@@ -213,7 +149,7 @@ def configure_routes(app):
         try:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             
-            config = ModelConfig()  
+            config = ModelConfig() 
 
             paths = setup_paths(timestamp)
             paths_ok, error_msg = ensure_paths(paths)
@@ -334,6 +270,8 @@ def configure_routes(app):
                 for _, row in importance_df.iterrows()
             ]
     
+            latest_metadata = load_latest_model_metadata(paths['model'][0])
+
             response = {
                 '0.model': str(model),
                 '1.latest_cv_scoring': latest_cv_scoring,
@@ -377,7 +315,8 @@ def configure_routes(app):
                 '5.artifacts': artifact_info,
                 '6.package_versions': package_versions,
                 '7.scaler_instructions': scaler_instructions,
-                '8.model_config': vars(config)
+                '8.model_config': vars(config),
+                '9.timestamp': latest_metadata.get('timestamp', timestamp)
             }
 
             logger.info({"message": "Training completed successfully", "response": response})

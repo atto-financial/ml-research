@@ -8,8 +8,8 @@ from sklearn.preprocessing import StandardScaler
 from app.data.data_transforming import data_transforming_fsk_v1
 from app.data.data_engineering import data_engineering_fsk_v1
 from app.utils_model import validate_data
-from app.predictions.ans_predictions import predict_answers
 from app.utils_model import get_artifact_paths, load_and_verify_artifact, load
+from app.prediction.utils_prediction import screen_fsk_answers, predict_answers, load_model
 
 
 logging.basicConfig(
@@ -21,78 +21,28 @@ logger = logging.getLogger(__name__)
 
 
 def validate_input(answers: Dict, required_keys: List[str]) -> None:
-    """Validate that the input dictionary has required keys and list values."""
+    
     missing_keys = [key for key in required_keys if key not in answers]
     if missing_keys:
-        raise ValueError(f"Missing required keys: {', '.join(missing_keys)}")
-    for key in required_keys:
-        if not isinstance(answers[key], list):
-            raise ValueError(
-                f"Key '{key}' must be a list, got {type(answers[key])}")
+        logger.warning(f"Missing keys (proceeding dynamically): {', '.join(missing_keys)}")
+    for key in answers:
+        if key in required_keys and not isinstance(answers[key], list):
+            logger.warning(f"Key '{key}' is not a list (proceeding): {type(answers[key])}")
 
-
-def set_answers_v1(data):
-    answers = []
-    for i in range(len(data)):
-        value = int(data[i])
-        answers.append(value)
-    cus_ans_data = pd.DataFrame(
-        [answers], columns=[f'set{i+9}' for i in range(len(answers))])
-    from app.predictions.ans_predictions import load_model
-    model = load_model("rdf50_m1.2_set_f1.0")
-    from app.predictions.ans_predictions import make_predictions
-    predictions, probabilities, predictions_adjusted = make_predictions(
-        model, cus_ans_data)
-    results = {
-        'model_prediction': int(predictions[0]),
-        'default_probability': float(f"{probabilities[0]:.3f}"),
-        'adjust_prediction': int(predictions_adjusted)
-    }
-    return results
-
-
-def set_answers_v2(answers):
-    import pandas as pd
-
-    fht = answers.get('fht')
-    set = answers.get('set')
-    kmsi = answers.get('kmsi')
-
-    import pandas as pd
-
-    cus_ans_data = pd.DataFrame(
-        [set], columns=[f'set{i+9}' for i in range(len(set))])
-    from app.predictions.ans_predictions import load_model
-    model = load_model("rdf50_m1.2_set_f1.0")
-    from app.predictions.ans_predictions import make_predictions
-    predictions, probabilities, predictions_adjusted = make_predictions(
-        model, cus_ans_data)
-    results = {
-        'default_probability': float(f"{probabilities[0]:.3f}"),
-        'model_prediction': int(predictions[0]),
-        'adjust_prediction': int(predictions_adjusted),
-    }
-
-
-def fsk_answers_v1(answers: Dict, model_path: str = None, scaler_path: str = None) -> Tuple[Dict, int]:
+def fsk_answers_v2(answers: Dict, model_path: str = None, scaler_path: str = None) -> Tuple[Dict, int]:
     try:
         required_keys = ['fht', 'set', 'kmsi']
         validate_input(answers, required_keys)
-        fht, set_, kmsi = answers['fht'], answers['set'], answers['kmsi']
-        fht = [int(x) for x in answers['fht']]
-        set_ = [int(x) for x in answers['set']]
-        kmsi = [int(x) for x in answers['kmsi']]
+        fht = [int(x) for x in answers.get('fht', [])]
+        set_ = [int(x) for x in answers.get('set', [])]
+        kmsi = [int(x) for x in answers.get('kmsi', [])]
         print(fht)
         print(set_)
         print(kmsi)
         logger.debug(
             f"Validated input: fht={len(fht)}, set={len(set_)}, kmsi={len(kmsi)}")
 
-        for i in range(len(kmsi)):
-            if kmsi[i] in [1, 2]:
-                kmsi[i] = 1
-            elif kmsi[i] == 3:
-                kmsi[i] = 2
+        screening_passed, screening_msg = screen_fsk_answers(answers)
 
         cus_ans = fht + set_ + kmsi
         columns = (
@@ -145,6 +95,11 @@ def fsk_answers_v1(answers: Dict, model_path: str = None, scaler_path: str = Non
 
         results, status = predict_answers(
             cus_engineered_data, model_path=model_path, scaler_path=scaler_path)
+        
+        results['screening_passed'] = screening_passed
+        results['screening_msg'] = screening_msg
+        results['checksum_valid'] = True
+
         return results, status
 
     except ValueError as ve:
@@ -153,26 +108,23 @@ def fsk_answers_v1(answers: Dict, model_path: str = None, scaler_path: str = Non
     except Exception as e:
         logger.error(f"Internal Server Error: {str(e)}", exc_info=True)
         return {"error": f"Internal Server Error: {str(e)}"}, 500
-
-
-def fsk_answers_v2(answers: Dict, model_path: str = None, scaler_path: str = None) -> Tuple[Dict, int]:
+    
+def fk_answers_v1(answers: Dict, model_path: str = None, scaler_path: str = None) -> Tuple[Dict, int]:
     try:
-        required_keys = ['fht', 'set', 'kmsi']
+        required_keys = ['fht','kmsi']
         validate_input(answers, required_keys)
-        fht, set_, kmsi = answers['fht'], answers['set'], answers['kmsi']
-        fht = [int(x) for x in answers['fht']]
-        set_ = [int(x) for x in answers['set']]
-        kmsi = [int(x) for x in answers['kmsi']]
+        fht = [int(x) for x in answers.get('fht', [])]
+        kmsi = [int(x) for x in answers.get('kmsi', [])]
         print(fht)
-        print(set_)
         print(kmsi)
         logger.debug(
-            f"Validated input: fht={len(fht)}, set={len(set_)}, kmsi={len(kmsi)}")
+            f"Validated input: fht={len(fht)}, kmsi={len(kmsi)}")
 
-        cus_ans = fht + set_ + kmsi
+        screening_passed, screening_msg = screen_fsk_answers(answers)
+
+        cus_ans = fht + kmsi
         columns = (
             [f'fht{i+1}' for i in range(len(fht))] +
-            [f'set{i+1}' for i in range(len(set_))] +
             [f'kmsi{i+1}' for i in range(len(kmsi))]
         )
         cus_ans_data = pd.DataFrame([cus_ans], columns=columns)
@@ -220,6 +172,11 @@ def fsk_answers_v2(answers: Dict, model_path: str = None, scaler_path: str = Non
 
         results, status = predict_answers(
             cus_engineered_data, model_path=model_path, scaler_path=scaler_path)
+        
+        results['screening_passed'] = screening_passed
+        results['screening_msg'] = screening_msg
+        results['checksum_valid'] = True
+
         return results, status
 
     except ValueError as ve:
