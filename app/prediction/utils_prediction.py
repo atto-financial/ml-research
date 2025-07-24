@@ -15,20 +15,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-def count_ways(n: int) -> List[int]:
-    
-    dp = [0] * (3 * n + 1)
-    dp[0] = 1 # 0 dice sum 0
-    for _ in range(n):
-        new_dp = [0] * (3 * n + 1)
-        for s in range(len(dp)):
-            if dp[s] > 0:
-                for v in range(1, 4):
-                    if s + v < len(new_dp):
-                        new_dp[s + v] += dp[s]
-        dp = new_dp
-    return dp
-
 def screen_fsk_answers(answers: Dict[str, List[str]]) -> Tuple[bool, Optional[str]]:
 
     if not answers:
@@ -51,10 +37,6 @@ def screen_fsk_answers(answers: Dict[str, List[str]]) -> Tuple[bool, Optional[st
             logger.error(f"Values in {key} must be between 1 and 3")
             return False, f"Values in {key} must be between 1 and 3"
         
-        if len(set(vals)) == 1:
-            logger.warning(f"All answers identical in {key}")
-            return False, f"All answers identical in {key}"
-        
         all_answers.extend(vals)
 
     n = len(all_answers)
@@ -62,41 +44,9 @@ def screen_fsk_answers(answers: Dict[str, List[str]]) -> Tuple[bool, Optional[st
         logger.error("No valid answers found")
         return False, "No valid answers found"
 
-    total_score = sum(all_answers)
-    
-    mean = 2 * n
-    min_sum = n
-    max_sum = 3 * n
-    
-    if n < 30:
-        # Exact test 
-        dp = count_ways(n)
-        total_ways = sum(dp)  # Should be 3**n
-        # Due to symmetry, P(sum <= total) = P(sum >= (4*n - total))
-        if total_score < mean:
-            low_tail = sum(dp[min_sum: total_score + 1])
-            high_tail = sum(dp[4*n - total_score: max_sum + 1])
-        elif total_score > mean:
-            high_tail = sum(dp[total_score: max_sum + 1])
-            low_tail = sum(dp[min_sum: 4*n - total_score + 1])
-        else:
-            return True, None  
-        
-        p_value = (low_tail + high_tail) / total_ways
-        if p_value < 0.05:
-            logger.warning(f"Suspicious score: exact p={p_value:.4f} < 0.05")
-            return False, f"Suspicious score: exact p={p_value:.4f}"
-    else:
-        # Z-test 
-        var = n * (2 / 3)
-        std = math.sqrt(var)
-        if std == 0:  
-            return True, None
-        z = (total_score - mean) / std
-        z_crit = 1.96  # For alpha=0.05, two-tailed
-        if abs(z) > z_crit:
-            logger.warning(f"Suspicious score: z={z:.2f}, |z| > {z_crit}")
-            return False, f"Suspicious score: z={z:.2f}"
+    if len(set(all_answers)) == 1:
+        logger.warning("All answers identical")
+        return False, "All answers identical"
 
     logger.info("Answers passed screening")
     return True, None
