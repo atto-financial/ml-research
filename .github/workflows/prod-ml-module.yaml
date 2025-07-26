@@ -5,11 +5,6 @@ on:
     tags:
       - "*"
 
-# on:
-#   push:
-#     branches:
-#       - main
-
 env:
   PROJECT_ID: ${{ vars.GKE_PROJECT_ID }}
   GKE_CLUSTER: ${{ vars.GKE_CLUSTER }}
@@ -20,6 +15,10 @@ env:
   IMAGE_NAME: ml-module
   SERVICE_NAME: ml-module
   NAMESPACE: core-atto
+  MEMORY_REQUEST: 128Mi
+  MEMORY_LIMIT: 512Mi
+  CPU_REQUEST: 100m
+  CPU_LIMIT: 300m
 
 jobs:
   setup-build-publish-deploy:

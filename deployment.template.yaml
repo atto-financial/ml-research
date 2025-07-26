@@ -18,6 +18,13 @@ spec:
       containers:
         - name: $SERVICE_NAME
           image: $IMAGE_FULL_NAME
+          resources:
+            requests:
+              memory: $MEMORY_REQUEST
+              cpu: $CPU_REQUEST
+            limits:
+              memory: $MEMORY_LIMIT
+              cpu: $CPU_LIMIT
           imagePullPolicy: Always
           ports:
             - containerPort: 5000
