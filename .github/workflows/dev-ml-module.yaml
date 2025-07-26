@@ -1,7 +1,7 @@
 name: (DEV) Build and Deploy [ml-module]
 
 on:
-  push:
+  pull_request:
     branches:
       - "staging"
 
@@ -13,6 +13,7 @@ env:
   ARTIFACT_URL: us-central1-docker.pkg.dev
   IMAGE_NAME: dev-ml-module
   SERVICE_NAME: dev-ml-module
+  NAMESPACE: dev-atto
 
 jobs:
   setup-build-publish-deploy:

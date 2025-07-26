@@ -19,6 +19,7 @@ env:
   ARTIFACT_URL: us-central1-docker.pkg.dev
   IMAGE_NAME: ml-module
   SERVICE_NAME: ml-module
+  NAMESPACE: core-atto
 
 jobs:
   setup-build-publish-deploy:

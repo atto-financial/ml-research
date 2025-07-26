@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: $SERVICE_NAME
+  labels:
+    app: $SERVICE_NAME
+  namespace: $NAMESPACE
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: $SERVICE_NAME
+  template:
+    metadata:
+      labels:
+        app: $SERVICE_NAME
+    spec:
+      containers:
+        - name: $SERVICE_NAME
+          image: $IMAGE_FULL_NAME
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 5000
+          envFrom:
+            - configMapRef:
+                name: core-atto-ml-module-config
+            - secretRef:
+                name: core-atto-ml-module-secret
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: $SERVICE_NAME
+  name: $SERVICE_NAME
+  namespace: $NAMESPACE
+spec:
+  type: ClusterIP
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 5000
+  selector:
+    app: $SERVICE_NAME
