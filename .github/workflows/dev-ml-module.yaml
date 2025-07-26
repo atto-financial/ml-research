@@ -1,0 +1,58 @@
+name: (DEV) Build and Deploy [ml-module]
+
+on:
+  push:
+    branches:
+      - "staging"
+
+env:
+  PROJECT_ID: ${{ vars.GKE_PROJECT_ID }}
+  GKE_CLUSTER: ${{ vars.GKE_CLUSTER }}
+  GKE_ZONE: ${{ vars.GKE_ZONE }}
+  REPO: dev-atto
+  ARTIFACT_URL: us-central1-docker.pkg.dev
+  IMAGE_NAME: dev-ml-module
+  SERVICE_NAME: dev-ml-module
+
+jobs:
+  setup-build-publish-deploy:
+    name: Setup, Build, Publish, and Deploy
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - uses: google-github-actions/auth@v2
+        with:
+          project_id: ${{ vars.GKE_PROJECT_ID }}
+          credentials_json: ${{ secrets.GKE_SA_KEY_JSON }}
+
+      - run: |-
+          gcloud auth configure-docker $ARTIFACT_URL --quiet
+
+      - uses: google-github-actions/get-gke-credentials@v2
+        with:
+          project_id: ${{ vars.GKE_PROJECT_ID }}
+          cluster_name: ${{ env.GKE_CLUSTER }}
+          location: ${{ env.GKE_ZONE }}
+
+      - name: Build
+        run: |-
+          docker build -t $ARTIFACT_URL/$PROJECT_ID/$REPO/$IMAGE_NAME:$GITHUB_SHA .
+
+      - name: Publish
+        run: |-
+          docker push $ARTIFACT_URL/$PROJECT_ID/$REPO/$IMAGE_NAME:$GITHUB_SHA
+
+      - name: Set IMAGE_NAME variable
+        run: |-
+          echo "IMAGE_FULL_NAME=$ARTIFACT_URL/$PROJECT_ID/$REPO/$IMAGE_NAME:$GITHUB_SHA" >> $GITHUB_ENV
+
+      - name: Render k8s manifests
+        run: envsubst < deployment.template.yaml > deployment.yaml
+
+      - name: Deploy "deployment.yaml"
+        run: |-
+          kubectl apply -f deployment.yaml
