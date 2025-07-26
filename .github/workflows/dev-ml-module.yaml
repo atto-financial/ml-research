@@ -15,9 +15,9 @@ env:
   SERVICE_NAME: dev-ml-module
   NAMESPACE: dev-atto
   MEMORY_REQUEST: 10Mi
-  MEMORY_LIMIT: 100Mi
-  CPU_REQUEST: 3m
-  CPU_LIMIT: 50m
+  MEMORY_LIMIT: 236Mi
+  CPU_REQUEST: 10m
+  CPU_LIMIT: 100m
 
 jobs:
   setup-build-publish-deploy:
