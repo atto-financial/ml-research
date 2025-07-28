@@ -177,6 +177,7 @@ def fk_answers_v1(answers: Dict, model_path: str = None, scaler_path: str = None
         results['screening_passed'] = screening_passed
         results['screening_msg'] = screening_msg
         results['checksum_valid'] = True
+        results['approvalLoanStatus'] = 'approved' if results['default_probability'] == 0 and screening_passed else 'rejected'
 
         return results, status
 
