@@ -6,7 +6,7 @@ import pandas as pd
 from pathlib import Path
 from joblib import load
 from sklearn.preprocessing import StandardScaler
-from app.utils_model import validate_features, get_artifact_paths, load_and_verify_artifact
+from app.utils_model import validate_features, load_and_verify_artifact
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -226,7 +226,7 @@ def prediction_function(
         logger.error(f"Unexpected error in unified_prediction_function: {str(e)}", exc_info=True)
         return None, None, None
 
-def predict_answers(cus_engineered_data: pd.DataFrame, model_path: str = None, scaler_path: str = None) -> Tuple[dict, int]:
+def predict_answers(cus_engineered_data: pd.DataFrame, model_path: str = None, scaler_path: str = None, metadata_path: str = None) -> Tuple[dict, int]:
     try:
         if not isinstance(cus_engineered_data, pd.DataFrame):
             logger.error(f"Expected DataFrame, got {type(cus_engineered_data)}")
@@ -246,10 +246,22 @@ def predict_answers(cus_engineered_data: pd.DataFrame, model_path: str = None, s
         else:
             scaler_path = Path(scaler_path)
 
-        paths = get_artifact_paths(model_dir="save_models", model_path=str(model_path), scaler_path=str(scaler_path))
+        model_checksum = None
+        scaler_checksum = None
+
+        if metadata_path:
+            try:
+                metadata_df = pd.read_csv(metadata_path)
+                # Assuming CSV has columns 'path' and 'checksum'
+                checksum_dict = dict(zip(metadata_df['path'], metadata_df['checksum']))
+                model_checksum = checksum_dict.get(str(model_path), None)
+                scaler_checksum = checksum_dict.get(str(scaler_path), None)
+                logger.info(f"Loaded checksums from metadata CSV: model={model_checksum}, scaler={scaler_checksum}")
+            except Exception as e:
+                logger.warning(f"Failed to load checksums from {metadata_path}: {str(e)}. Using no checksums.")
         
-        scaler = load_scaler(scaler_path, paths.get('scaler_checksum'))
-        model = load_model(model_path, paths.get('model_checksum'))
+        scaler = load_scaler(scaler_path, scaler_checksum)
+        model = load_model(model_path, model_checksum)
 
         if not hasattr(model, 'feature_names_in_'):
             logger.error("Model does not have feature_names_in_ attribute")
@@ -277,6 +289,7 @@ def predict_answers(cus_engineered_data: pd.DataFrame, model_path: str = None, s
             'adjust_prediction': int(predictions_adjusted[0]),
             'scaler_path': str(scaler_path),
             'model_path': str(model_path),
+            'metadata_path': metadata_path if metadata_path else "Not provided",
             'used_features': list(scaled_df.columns)
         }
         logger.info(f"Prediction results: default_probability={results['default_probability']}, "

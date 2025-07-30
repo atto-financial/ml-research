@@ -39,7 +39,6 @@ def run_data_pipeline() -> Optional[pd.DataFrame]:
         try:
             logger.debug(f"Running pipeline step: {step}")
             raw_dat = func() if step == "load" else func(raw_dat)
-            print(raw_dat)
             if not validate_data(raw_dat, f"Data after {step}"):
                 logger.error(error_msg)
                 return None
@@ -254,12 +253,8 @@ def configure_routes(app):
                 "latest_cv_scoring": latest_cv_scoring
             })
 
-            artifact_info = {
-                'scaler_path': '', 'scaler_checksum': '',
-                'model_path': '', 'model_checksum': '',
-                'metadata_path': '', 'metadata_checksum': ''
-            }
-            if not metadata_exists or (metrics_summary[scoring_key] > latest_cv_scoring and metrics_summary['cv_score_std'] < 0.10):
+            improved = not metadata_exists or (metrics_summary[scoring_key] > latest_cv_scoring and metrics_summary['cv_score_std'] < 0.10)
+            if improved:
                 logger.info({
                     "message": "Saving artifacts",
                     "first_run": not metadata_exists,
@@ -272,66 +267,91 @@ def configure_routes(app):
                 if artifact_info is None:
                     logger.error("Failed to save artifacts")
                     return jsonify({"error": "Failed to save artifacts"}), 500
+            else:
+                artifact_info = {
+                    'scaler_path': latest_metadata.get('scaler_path', ''),
+                    'scaler_checksum': latest_metadata.get('scaler_checksum', ''),
+                    'model_path': latest_metadata.get('model_path', ''),
+                    'model_checksum': latest_metadata.get('model_checksum', ''),
+                    'metadata_path': latest_metadata.get('metadata_path', ''),
+                    'metadata_checksum': latest_metadata.get('metadata_checksum', '')
+                }
 
-            package_versions = {
-                'sklearn': sklearn.__version__,
-                'joblib': joblib.__version__
-            }
-            scaler_instructions = get_scaler_instructions(
-                artifact_info, final_features, package_versions, config.decision_threshold)
-
-            final_features_dict = [
-                {'feature': row['feature'],
-                 'importance': float(row['importance'])}  # Fixed 'r dow' to 'row'
-                for _, row in importance_df.iterrows()
-            ]
-    
             latest_metadata = load_latest_model_metadata(paths['model'][0])
 
+            package_versions = latest_metadata.get('package_versions', {
+                'sklearn': sklearn.__version__,
+                'joblib': joblib.__version__
+            })
+            decision_threshold = latest_metadata.get('decision_threshold', config.decision_threshold)
+            final_features_list = [item['feature'] for item in latest_metadata.get('final_features', [])]
+            scaler_instructions = get_scaler_instructions(
+                artifact_info, final_features_list, package_versions, decision_threshold)
+
+            final_features_dict = latest_metadata.get('final_features', [])
+    
             response = {
-                '0.model': str(model),
-                '1.latest_cv_scoring': latest_cv_scoring,
+                '0.model': str(model) if improved else f"Using existing model from {latest_metadata.get('model_path', 'unknown')}",
+                '1.latest_cv_scoring': latest_metadata.get(scoring_key, 0.0),
                 '2.metrics': {
-                    'cv_roc_auc': metrics_summary['cv_roc_auc'],
-                    'cv_accuracy': metrics_summary['cv_accuracy'],
-                    'cv_precision': metrics_summary['cv_precision'],
-                    'cv_recall': metrics_summary['cv_recall'],
-                    'cv_f1': metrics_summary['cv_f1'],
-                    'test_roc_auc': metrics_summary['test_roc_auc'],
-                    'test_accuracy': metrics_summary['test_accuracy'],
-                    'test_precision': metrics_summary['test_precision'],
-                    'test_recall': metrics_summary['test_recall'],
-                    'test_f1': metrics_summary['test_f1'],
-                    'cv_score_std': metrics_summary['cv_score_std'],
-                    'overfitting_gap': metrics_summary['overfitting_gap'],
+                    'cv_roc_auc': latest_metadata['cv_roc_auc'],
+                    'cv_accuracy': latest_metadata['cv_accuracy'],
+                    'cv_precision': latest_metadata['cv_precision'],
+                    'cv_recall': latest_metadata['cv_recall'],
+                    'cv_f1': latest_metadata['cv_f1'],
+                    'test_roc_auc': latest_metadata['test_roc_auc'],
+                    'test_accuracy': latest_metadata['test_accuracy'],
+                    'test_precision': latest_metadata['test_precision'],
+                    'test_recall': latest_metadata['test_recall'],
+                    'test_f1': latest_metadata['test_f1'],
+                    'cv_score_std': latest_metadata['cv_score_std'],
+                    'overfitting_gap': latest_metadata['overfitting_gap'],
                 },
                 '3.confidence_intervals': {
                     'accuracy': {
-                        'lower': metrics_summary['accuracy_ci_lower'],
-                        'upper': metrics_summary['accuracy_ci_upper']
+                        'lower': latest_metadata['accuracy_ci_lower'],
+                        'upper': latest_metadata['accuracy_ci_upper']
                     },
                     'precision': {
-                        'lower': metrics_summary['precision_ci_lower'],
-                        'upper': metrics_summary['precision_ci_upper']
+                        'lower': latest_metadata['precision_ci_lower'],
+                        'upper': latest_metadata['precision_ci_upper']
                     },
                     'recall': {
-                        'lower': metrics_summary['recall_ci_lower'],
-                        'upper': metrics_summary['recall_ci_upper']
+                        'lower': latest_metadata['recall_ci_lower'],
+                        'upper': latest_metadata['recall_ci_upper']
                     },
                     'f1': {
-                        'lower': metrics_summary['f1_ci_lower'],
-                        'upper': metrics_summary['f1_ci_upper']
+                        'lower': latest_metadata['f1_ci_lower'],
+                        'upper': latest_metadata['f1_ci_upper']
                     },
                     'roc_auc': {
-                        'lower': metrics_summary['roc_auc_ci_lower'],
-                        'upper': metrics_summary['roc_auc_ci_upper']
+                        'lower': latest_metadata['roc_auc_ci_lower'],
+                        'upper': latest_metadata['roc_auc_ci_upper']
                     }
                 },
                 '4.final_features': final_features_dict,
                 '5.artifacts': artifact_info,
                 '6.package_versions': package_versions,
                 '7.scaler_instructions': scaler_instructions,
-                '8.model_config': vars(config),
+                '8.model_config': {
+                    'scoring': latest_metadata['scoring'],
+                    'n_estimators': latest_metadata['n_estimators'],
+                    'max_depth': latest_metadata['max_depth'],
+                    'min_samples_split': latest_metadata['min_samples_split'],
+                    'n_features_to_select': latest_metadata['n_features_to_select'],
+                    'n_folds': latest_metadata['n_folds'],
+                    'random_state': latest_metadata['random_state'],
+                    'oversampling_method': latest_metadata['oversampling_method'],
+                    'categorical_features': latest_metadata['categorical_features'],
+                    'use_undersampling': latest_metadata['use_undersampling'],
+                    'max_vif': latest_metadata['max_vif'],
+                    'n_bootstraps': latest_metadata['n_bootstraps'],
+                    'alpha': latest_metadata['alpha'],
+                    'test_size': latest_metadata['test_size'],
+                    'memory_threshold': latest_metadata['memory_threshold'],
+                    'cost_weight': latest_metadata['cost_weight'],
+                    'decision_threshold': latest_metadata['decision_threshold']
+                },
                 '9.timestamp': latest_metadata.get('timestamp', timestamp)
             }
 
@@ -372,7 +392,7 @@ def configure_routes(app):
                 logger.error("Data pipeline failed")
                 return jsonify({"error": "Data pipeline failed"}), 500
             
-            return jsonify(raw_dat), 200
+            return jsonify(raw_dat.to_dict(orient='records')), 200
         
         except ValueError as ve:
             logger.error({"message": "ValueError in lucis", "error": str(ve)})
