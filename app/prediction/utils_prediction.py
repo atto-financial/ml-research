@@ -48,8 +48,26 @@ def screen_fsk_answers(answers: Dict[str, List[str]]) -> Tuple[bool, Optional[st
         logger.warning("All answers identical")
         return False, "All answers identical"
 
+    import math
+    population_mean = 2.0
+    population_variance = 2 / 3
+    population_sd = math.sqrt(population_variance)
+    sample_mean = sum(all_answers) / n
+    standard_error = population_sd / math.sqrt(n)
+    z_score = (sample_mean - population_mean) / standard_error
+    z_critical = 1.96  # For alpha=0.05 two-tailed
+
+    if abs(z_score) > z_critical:
+        logger.warning("Anomalous score detected by z-test")
+        return False, f"Anomalous score detected (z={z_score:.2f})"
+
+    from collections import Counter
+    counter = Counter(all_answers)
+    total = len(all_answers)
+    msg = ", ".join(f"{k} ({int((v / total) * 100)}%)" for k, v in sorted(counter.items()))
+
     logger.info("Answers passed screening")
-    return True, None
+    return True, msg
 
 def load_model(model_path: Path, expected_checksum: Optional[str] = None) -> object:
     try:

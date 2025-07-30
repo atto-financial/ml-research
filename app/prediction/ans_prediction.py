@@ -176,6 +176,11 @@ def fk_answers_v1(answers: Dict, model_path: str = None, scaler_path: str = None
         results['screening_msg'] = screening_msg
         results['checksum_valid'] = True
 
+        if results['screening_passed'] is True and results['model_prediction'] == 0:
+            results['approval_loan_status'] = 'approved'
+        else:
+            results['approval_loan_status'] = 'rejected'
+
         return results, status
 
     except ValueError as ve:
