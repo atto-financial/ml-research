@@ -127,6 +127,15 @@ def configure_routes(app):
             answers = data.get('answers', {})
             model_path = data.get('model_path', None)
             scaler_path = data.get('scaler_path', None)
+            
+            from app.utils.feature import extract_feature_answers
+            logger.info(f"raw_answers : {answers}")
+            answers_order = [
+                {"group": "fht", "version": "1"},
+                {"group": "kmsi", "version": "1"}
+            ]
+            answers = extract_feature_answers(answers, answers_order)
+            logger.info(f"extracted_answers : {answers}")
 
             if not isinstance(answers, dict):
                 logger.error(f"Invalid answers format: {type(answers)}")

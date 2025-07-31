@@ -1,8 +1,8 @@
 def extract_feature_answers(answers, answers_order):
     result = {}
     for order_spec in answers_order:
-        group_name = order_spec['group_select']
-        target_version = order_spec['version_select']
+        group_name = order_spec['group']
+        target_version = order_spec['version']
         filtered_answers = [
             answer for answer in answers 
             if answer['group'] == group_name and answer['version'] == target_version
