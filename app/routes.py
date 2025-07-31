@@ -118,6 +118,7 @@ def configure_routes(app):
     def predict():
         try:
             data = request.get_json()
+            
             if not data:
                 logger.error("No JSON data provided in request")
                 return jsonify({"error": "No JSON data provided"}), 400
