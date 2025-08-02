@@ -74,7 +74,6 @@ def preprocess_and_select_features(data: pd.DataFrame, config: ModelConfig) -> T
         logger.error(f"Error in preprocessing and feature selection: {str(e)}")
         return None, None, []
 
-
 def train_and_evaluate_model(data: pd.DataFrame, features: List[str], config: ModelConfig) -> Tuple[Optional[RandomForestClassifier], Optional[Dict], List[str]]:
     try:
         model, metrics = train_model(data, features, config)
@@ -91,7 +90,6 @@ def train_and_evaluate_model(data: pd.DataFrame, features: List[str], config: Mo
     except Exception as e:
         logger.error(f"Error in model training: {str(e)}")
         return None, None, []
-
 
 def get_scaler_instructions(artifact_info: Dict, final_features: List[str], package_versions: Dict, decision_threshold: float) -> str:
     if not artifact_info['scaler_path']:
@@ -111,9 +109,9 @@ def get_scaler_instructions(artifact_info: Dict, final_features: List[str], pack
     )
 
 def configure_routes(app):
-    @app.route('/')
-    def home():
-        return render_template('train_model.html')
+    # @app.route('/') 
+    # def home():
+    #     return render_template('train_model.html')
     
     @app.route('/predict', methods=['POST'])
     def predict():
@@ -128,20 +126,20 @@ def configure_routes(app):
             scaler_path = data.get('scaler_path', None)
             metadata_path = data.get('metadata_path', None)
             
-            # logger.info(f"raw_answers : {answers}")
-            # answers_order = [
-            #     {"group": "fht", "version": "1"},
-            #     {"group": "kmsi", "version": "1"}
-            # ]
-            # answers = extract_feature_answers(answers, answers_order)
-            # logger.info(f"extracted_answers : {answers}")
+            logger.info(f"raw_answers : {answers}")
+            answers_order = [
+                {"group": "fht", "version": "1"},
+                {"group": "kmsi", "version": "1"}
+            ]
+            answers = extract_feature_answers(answers, answers_order)
+            logger.info(f"extracted_answers : {answers}")
 
-            # if not isinstance(answers, dict):
-            #     logger.error(f"Invalid answers format: {type(answers)}")
-            #     return jsonify({"error": "Answers must be a dictionary"}), 400
-            # if not answers:
-            #     logger.error("Answers dictionary is empty")
-            #     return jsonify({"error": "Answers dictionary is empty"}), 400
+            if not isinstance(answers, dict):
+                logger.error(f"Invalid answers format: {type(answers)}")
+                return jsonify({"error": "Answers must be a dictionary"}), 400
+            if not answers:
+                logger.error("Answers dictionary is empty")
+                return jsonify({"error": "Answers dictionary is empty"}), 400
 
             if application_label == "rdf50_v2.0_fk_v1.0":
                 results, status = fk_answers_v1(
@@ -379,16 +377,13 @@ def configure_routes(app):
                 {"message": "Internal Server Error in lucis", "error": str(e)}, exc_info=True)
             return jsonify({"error": f"Internal Server Error: {str(e)}"}), 500
 
-    @app.route('/test')
-    def test():
+    @app.route('/test/run_data_pipeline', methods=['POST'])
+    def data_load():
         try:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-
-            config = ModelConfig()
-
+            config = ModelConfig() 
             paths = setup_paths(timestamp)
             paths_ok, error_msg = ensure_paths(paths)
-
             if not paths_ok:
                 logger.error(f"Failed to create directories: {error_msg}")
                 return jsonify({"error": f"Failed to create directories: {error_msg}"}), 500
@@ -397,12 +392,9 @@ def configure_routes(app):
                 {"message": "Starting random forest pipeline", "timestamp": timestamp})
 
             raw_dat = run_data_pipeline()
-            if raw_dat is None:
-                logger.error("Data pipeline failed")
-                return jsonify({"error": "Data pipeline failed"}), 500
+            json_compatible_data = raw_dat.to_dict(orient='records')  # 'records' format is common for JSON
+            return jsonify(json_compatible_data)
             
-            return jsonify(raw_dat.to_dict(orient='records')), 200
-        
         except ValueError as ve:
             logger.error({"message": "ValueError in lucis", "error": str(ve)})
             return jsonify({"error": f"ValueError: {str(ve)}"}), 400
