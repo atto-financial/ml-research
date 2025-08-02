@@ -141,7 +141,7 @@ def configure_routes(app):
                 logger.error("Answers dictionary is empty")
                 return jsonify({"error": "Answers dictionary is empty"}), 400
 
-            if application_label == "rdf50_v2.0_fk_v1.0":
+            if application_label == "rdf50_v3.0_fk_v1.0":
                 results, status = fk_answers_v1(
                     answers, metadata_path=metadata_path, model_path=model_path, scaler_path=scaler_path
                 )
