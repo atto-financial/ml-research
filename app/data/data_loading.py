@@ -40,9 +40,13 @@ def data_loading_fsk_v1(chunksize: Optional[int] = None) -> Optional[Union[pd.Da
 
     try:
         conn = get_db_connection()
+        # numerical_columns = [
+        #     'fht1', 'fht2', 'fht3', 'fht4', 'fht5', 'fht6', 'fht7', 'fht8',
+        #     'set1', 'set2', 'kmsi1', 'kmsi2', 'kmsi3', 'kmsi4', 'kmsi5', 'kmsi6', 'kmsi7', 'kmsi8'
+        # ]
         numerical_columns = [
             'fht1', 'fht2', 'fht3', 'fht4', 'fht5', 'fht6', 'fht7', 'fht8',
-            'set1', 'set2', 'kmsi1', 'kmsi2', 'kmsi3', 'kmsi4', 'kmsi5', 'kmsi6', 'kmsi7', 'kmsi8'
+             'kmsi1', 'kmsi2', 'kmsi3', 'kmsi4', 'kmsi5', 'kmsi6', 'kmsi7', 'kmsi8'
         ]
         categorical_columns = ['ust']
 
@@ -110,10 +114,16 @@ def data_loading_fsk_v1(chunksize: Optional[int] = None) -> Optional[Union[pd.Da
 
 
 def extract_db_data(data: pd.DataFrame) -> pd.DataFrame:
+    # attr_mapping = [
+    #     ('fht1', 'fht', 1), ('fht2', 'fht', 2), ('fht3', 'fht', 3), ('fht4', 'fht', 4),
+    #     ('fht5', 'fht', 5), ('fht6', 'fht', 6), ('fht7', 'fht', 7), ('fht8', 'fht', 8),
+    #     ('set1', 'set', 9), ('set2', 'set', 10),
+    #     ('kmsi1', 'kmsi', 11), ('kmsi2', 'kmsi', 12), ('kmsi3', 'kmsi', 13), ('kmsi4', 'kmsi', 14),
+    #     ('kmsi5', 'kmsi', 15), ('kmsi6', 'kmsi', 16), ('kmsi7', 'kmsi', 17), ('kmsi8', 'kmsi', 18)
+    # ]
     attr_mapping = [
         ('fht1', 'fht', 1), ('fht2', 'fht', 2), ('fht3', 'fht', 3), ('fht4', 'fht', 4),
         ('fht5', 'fht', 5), ('fht6', 'fht', 6), ('fht7', 'fht', 7), ('fht8', 'fht', 8),
-        ('set1', 'set', 9), ('set2', 'set', 10),
         ('kmsi1', 'kmsi', 11), ('kmsi2', 'kmsi', 12), ('kmsi3', 'kmsi', 13), ('kmsi4', 'kmsi', 14),
         ('kmsi5', 'kmsi', 15), ('kmsi6', 'kmsi', 16), ('kmsi7', 'kmsi', 17), ('kmsi8', 'kmsi', 18)
     ]

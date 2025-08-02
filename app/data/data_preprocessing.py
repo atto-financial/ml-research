@@ -95,7 +95,19 @@ def data_preprocessing(
                 logger.info(f"Found {len(zero_variance_cols)} features with zero variance before: {zero_variance_cols}")
 
             # Drop columns ending with '_sum' 
-            columns_to_drop = [col for col in scale_clean_engineer_dat.columns if col.endswith('_sum')]
+            columns_to_drop = [col for col in scale_clean_engineer_dat.columns if col.endswith('_sum',)]
+            if columns_to_drop:
+                scale_clean_engineer_dat = scale_clean_engineer_dat.drop(columns=columns_to_drop)
+                logger.info(f"Dropped columns: {columns_to_drop}")
+                numeric_cols = [col for col in numeric_cols if col not in columns_to_drop]
+                
+            columns_to_drop = [col for col in scale_clean_engineer_dat.columns if col.endswith('_count')]
+            if columns_to_drop:
+                scale_clean_engineer_dat = scale_clean_engineer_dat.drop(columns=columns_to_drop)
+                logger.info(f"Dropped columns: {columns_to_drop}")
+                numeric_cols = [col for col in numeric_cols if col not in columns_to_drop]
+            
+            columns_to_drop = [col for col in scale_clean_engineer_dat.columns if col.endswith('_var')]
             if columns_to_drop:
                 scale_clean_engineer_dat = scale_clean_engineer_dat.drop(columns=columns_to_drop)
                 logger.info(f"Dropped columns: {columns_to_drop}")

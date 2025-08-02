@@ -31,6 +31,7 @@ def validate_input(answers: Dict, required_keys: List[str]) -> None:
             if not all(isinstance(x, (int, str)) and str(x).isdigit() for x in values):
                 logger.error(f"Invalid values in {key}: must be integers or strings representing integers")
                 raise ValueError(f"Invalid values in {key}")
+            
 def fsk_answers_v2(answers: Dict, model_path: str = None, scaler_path: str = None, metadata_path: str = None, drop_sum_columns: bool = True) -> Tuple[Dict, int]:
     try:
         required_keys = ['fht', 'set', 'kmsi']
@@ -106,6 +107,7 @@ def fsk_answers_v2(answers: Dict, model_path: str = None, scaler_path: str = Non
     except Exception as e:
         logger.error(f"Internal Server Error: {str(e)}", exc_info=True)
         return {"error": f"Internal Server Error: {str(e)}"}, 50
+    
 def fk_answers_v1(answers: Dict, metadata_path: str = None, model_path: str = None, scaler_path: str = None, drop_sum_columns: bool = True) -> Tuple[Dict, int]:
     try:
         required_keys = ['fht', 'kmsi']
