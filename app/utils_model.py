@@ -166,86 +166,6 @@ def load_and_verify_artifact(file_path: str, expected_checksum: str, expected_ty
         logger.error(f"Failed to load and verify artifact {file_path}: {str(e)}")
         raise
 
-def save_model_metadata(model_dir: str, metadata: Dict, filename: str = "model_metadata.json") -> None:
-    metadata_path = os.path.join(model_dir, filename)
-    try:
-        os.makedirs(model_dir, exist_ok=True)
-        metadata['package_versions'] = {
-            'sklearn': sklearn.__version__,
-            'joblib': joblib.__version__,
-            'pandas': pd.__version__,
-            'numpy': np.__version__
-        }
-
-        for key in ['model_path', 'scaler_path', 'metadata_path']:
-            path = metadata.get(key, '')
-            checksum = metadata.get(key.replace('_path', '_checksum'), '')
-            if path and not os.path.exists(path):
-                logger.warning(f"{key} does not exist: {path}")
-                metadata[key] = ''
-                metadata[key.replace('_path', '_checksum')] = ''
-            if checksum and len(checksum) != 64:
-                logger.warning(f"Invalid checksum for {key}: {checksum}")
-                metadata[key.replace('_path', '_checksum')] = ''
-
-        metrics_keys = [
-            'cv_roc_auc', 'cv_accuracy', 'cv_precision', 'cv_recall', 'cv_f1',
-            'cv_score_mean', 'cv_score_std', 'test_roc_auc', 'test_accuracy',
-            'test_precision', 'test_recall', 'test_f1', 'overfitting_gap',
-            'accuracy_ci_lower', 'accuracy_ci_upper', 'precision_ci_lower',
-            'precision_ci_upper', 'recall_ci_lower', 'recall_ci_upper',
-            'f1_ci_lower', 'f1_ci_upper', 'roc_auc_ci_lower', 'roc_auc_ci_upper'
-        ]
-        for metric in metrics_keys:
-            if metric not in metadata:
-                logger.warning(f"Metric {metric} missing in metadata. Setting to 0.0")
-                metadata[metric] = 0.0
-            value = metadata.get(metric, 0.0)
-            if not isinstance(value, (int, float)) or np.isnan(value) or value < 0.0:
-                logger.warning(f"Invalid {metric}: {value}. Setting to 0.0")
-                metadata[metric] = 0.0
-
-        if 'decision_threshold' not in metadata:
-            from app.models.lucis import ModelConfig
-            logger.warning("decision_threshold missing in metadata. Using default from ModelConfig")
-            metadata['decision_threshold'] = ModelConfig().decision_threshold
-        if not isinstance(metadata['decision_threshold'], (int, float)) or metadata['decision_threshold'] <= 0 or metadata['decision_threshold'] >= 1:
-            from app.models.lucis import ModelConfig
-            logger.warning(f"Invalid decision_threshold: {metadata['decision_threshold']}. Using default from ModelConfig")
-            metadata['decision_threshold'] = ModelConfig().decision_threshold
-
-        model_config_params = [
-            'scoring', 'n_estimators', 'max_depth', 'min_samples_split',
-            'n_features_to_select', 'n_folds', 'random_state', 'oversampling_method',
-            'categorical_features', 'use_undersampling', 'max_vif', 'n_bootstraps',
-            'alpha', 'test_size', 'memory_threshold', 'cost_weight'
-        ]
-        from app.models.lucis import ModelConfig
-        default_config = vars(ModelConfig())
-        for param in model_config_params:
-            if param not in metadata:
-                logger.warning(f"ModelConfig parameter {param} missing in metadata. Using default: {default_config[param]}")
-                metadata[param] = default_config[param]
-
-        if not isinstance(metadata.get('final_features', []), list):
-            logger.warning(f"Invalid final_features: {metadata['final_features']}. Setting to []")
-            metadata['final_features'] = []
-        for item in metadata['final_features']:
-            if not isinstance(item, dict) or 'feature' not in item or 'importance' not in item:
-                logger.warning(f"Invalid feature format: {item}. Setting final_features to []")
-                metadata['final_features'] = []
-                break
-            if not isinstance(item['importance'], (int, float)) or item['importance'] < 0:
-                logger.warning(f"Invalid importance for {item['feature']}: {item['importance']}. Setting final_features to []")
-                metadata['final_features'] = []
-                break
-        with open(metadata_path, 'w', encoding='utf-8') as f:
-            json.dump(metadata, f, indent=4, ensure_ascii=False)
-        logger.info(f"Saved metadata to {metadata_path}")
-    except (OSError, PermissionError, ValueError) as e:
-        logger.error(f"Failed to save metadata to {metadata_path}: {str(e)}")
-        raise
-
 def save_metadata_csv(metadata: Dict, directory: str, filename: str) -> Tuple[str, str]:
     try:
         os.makedirs(directory, exist_ok=True)
@@ -272,17 +192,34 @@ def save_metadata_csv(metadata: Dict, directory: str, filename: str) -> Tuple[st
         return "", ""
 
 def load_latest_model_metadata(model_dir: str) -> Dict:
-    metadata_path = os.path.join(model_dir, "model_metadata.json")
+    metadata_dir = "output_data"
     try:
-        if not os.path.exists(metadata_path):
-            logger.warning(f"Metadata file not found: {metadata_path}. Returning empty metadata.")
+        if not os.path.exists(metadata_dir):
+            logger.warning(f"Metadata directory not found: {metadata_dir}. Returning empty metadata.")
             return {}
-        with open(metadata_path, 'r', encoding='utf-8') as f:
-            content = f.read().strip()
-            if not content:
-                logger.warning(f"Metadata file is empty: {metadata_path}. Returning empty metadata.")
-                return {}
-            metadata = json.loads(content)
+        metadata_files = [f for f in os.listdir(metadata_dir) if f.startswith("metadata_") and f.endswith(".csv")]
+        if not metadata_files:
+            logger.warning(f"No metadata CSV files found in {metadata_dir}. Returning empty metadata.")
+            return {}
+        # Sort by timestamp in filename (assuming timestamp is sortable)
+        latest_file = sorted(metadata_files, key=lambda f: f.split("metadata_")[1].rstrip(".csv"), reverse=True)[0]
+        metadata_path = os.path.join(metadata_dir, latest_file)
+        metadata_df = pd.read_csv(metadata_path)
+        if metadata_df.empty:
+            logger.warning(f"Metadata CSV is empty: {metadata_path}. Returning empty metadata.")
+            return {}
+        metadata = metadata_df.iloc[0].to_dict()
+
+        # Parse JSON fields
+        json_fields = ['final_features', 'package_versions', 'cost_weight', 'n_estimators', 
+                       'max_depth', 'min_samples_split', 'categorical_features']
+        for field in json_fields:
+            if field in metadata and isinstance(metadata[field], str):
+                try:
+                    metadata[field] = json.loads(metadata[field])
+                except json.JSONDecodeError:
+                    logger.warning(f"Failed to parse JSON for {field} in metadata. Setting to default.")
+                    metadata[field] = [] if field == 'final_features' or field == 'categorical_features' else {}
 
         required_fields = [
             'decision_threshold', 'scoring', 'n_estimators', 'max_depth', 'min_samples_split',
@@ -336,8 +273,8 @@ def load_latest_model_metadata(model_dir: str) -> Dict:
 
         logger.info(f"Loaded metadata from {metadata_path}")
         return metadata
-    except (FileNotFoundError, json.JSONDecodeError) as e:
-        logger.warning(f"Failed to load metadata from {metadata_path}: {str(e)}. Returning empty metadata.")
+    except (FileNotFoundError, pd.errors.EmptyDataError) as e:
+        logger.warning(f"Failed to load metadata from {metadata_dir}: {str(e)}. Returning empty metadata.")
         return {}
 
 def get_artifact_paths(model_dir: str, model_path: str = None, scaler_path: str = None) -> Dict:
@@ -462,9 +399,78 @@ def save_all_artifacts(scaler: Any, model: RandomForestClassifier, importance_df
             'memory_threshold': model_config['memory_threshold'],
             'cost_weight': model_config['cost_weight']
         }
+
+        metadata['package_versions'] = {
+            'sklearn': sklearn.__version__,
+            'joblib': joblib.__version__,
+            'pandas': pd.__version__,
+            'numpy': np.__version__
+        }
+
+        for key in ['model_path', 'scaler_path', 'metadata_path']:
+            path = metadata.get(key, '')
+            checksum = metadata.get(key.replace('_path', '_checksum'), '')
+            if path and not os.path.exists(path):
+                logger.warning(f"{key} does not exist: {path}")
+                metadata[key] = ''
+                metadata[key.replace('_path', '_checksum')] = ''
+            if checksum and len(checksum) != 64:
+                logger.warning(f"Invalid checksum for {key}: {checksum}")
+                metadata[key.replace('_path', '_checksum')] = ''
+
+        metrics_keys = [
+            'cv_roc_auc', 'cv_accuracy', 'cv_precision', 'cv_recall', 'cv_f1',
+            'cv_score_mean', 'cv_score_std', 'test_roc_auc', 'test_accuracy',
+            'test_precision', 'test_recall', 'test_f1', 'overfitting_gap',
+            'accuracy_ci_lower', 'accuracy_ci_upper', 'precision_ci_lower',
+            'precision_ci_upper', 'recall_ci_lower', 'recall_ci_upper',
+            'f1_ci_lower', 'f1_ci_upper', 'roc_auc_ci_lower', 'roc_auc_ci_upper'
+        ]
+        for metric in metrics_keys:
+            if metric not in metadata:
+                logger.warning(f"Metric {metric} missing in metadata. Setting to 0.0")
+                metadata[metric] = 0.0
+            value = metadata.get(metric, 0.0)
+            if not isinstance(value, (int, float)) or np.isnan(value) or value < 0.0:
+                logger.warning(f"Invalid {metric}: {value}. Setting to 0.0")
+                metadata[metric] = 0.0
+
+        if 'decision_threshold' not in metadata:
+            from app.models.lucis import ModelConfig
+            logger.warning("decision_threshold missing in metadata. Using default from ModelConfig")
+            metadata['decision_threshold'] = ModelConfig().decision_threshold
+        if not isinstance(metadata['decision_threshold'], (int, float)) or metadata['decision_threshold'] <= 0 or metadata['decision_threshold'] >= 1:
+            from app.models.lucis import ModelConfig
+            logger.warning(f"Invalid decision_threshold: {metadata['decision_threshold']}. Using default from ModelConfig")
+            metadata['decision_threshold'] = ModelConfig().decision_threshold
+
+        model_config_params = [
+            'scoring', 'n_estimators', 'max_depth', 'min_samples_split',
+            'n_features_to_select', 'n_folds', 'random_state', 'oversampling_method',
+            'categorical_features', 'use_undersampling', 'max_vif', 'n_bootstraps',
+            'alpha', 'test_size', 'memory_threshold', 'cost_weight'
+        ]
+        from app.models.lucis import ModelConfig
+        default_config = vars(ModelConfig())
+        for param in model_config_params:
+            if param not in metadata:
+                logger.warning(f"ModelConfig parameter {param} missing in metadata. Using default: {default_config[param]}")
+                metadata[param] = default_config[param]
+
+        if not isinstance(metadata.get('final_features', []), list):
+            logger.warning(f"Invalid final_features: {metadata['final_features']}. Setting to []")
+            metadata['final_features'] = []
+        for item in metadata['final_features']:
+            if not isinstance(item, dict) or 'feature' not in item or 'importance' not in item:
+                logger.warning(f"Invalid feature format: {item}. Setting final_features to []")
+                metadata['final_features'] = []
+                break
+            if not isinstance(item['importance'], (int, float)) or item['importance'] < 0:
+                logger.warning(f"Invalid importance for {item['feature']}: {item['importance']}. Setting final_features to []")
+                metadata['final_features'] = []
+                break
+
         logger.debug(f"Metadata before saving: {metadata}")
-        logger.debug("Saving initial metadata.json")
-        save_model_metadata(paths['model'][0], metadata)
         logger.debug("Attempting to save metadata CSV")
         metadata_path, metadata_checksum = save_metadata_csv(metadata, *paths['metadata'])
         if not metadata_path or not metadata_checksum:
@@ -472,8 +478,6 @@ def save_all_artifacts(scaler: Any, model: RandomForestClassifier, importance_df
         else:
             metadata['metadata_path'] = metadata_path
             metadata['metadata_checksum'] = metadata_checksum
-            logger.debug("Saving updated metadata.json with metadata_path and metadata_checksum")
-            save_model_metadata(paths['model'][0], metadata)
         return {
             'scaler_path': scaler_path,
             'scaler_checksum': scaler_checksum,
