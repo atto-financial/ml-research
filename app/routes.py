@@ -155,7 +155,7 @@ def configure_routes(app):
             logger.error(f"Error in /predict: {str(e)}", exc_info=True)
             return jsonify({"error": f"Internal Server Error: {str(e)}"}), 500
 
-    @app.route('/lucis', methods=['POST'])
+    @app.route('/train/lucis', methods=['POST'])
     def lucis():
         try:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
