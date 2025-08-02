@@ -4,7 +4,7 @@ metadata:
   name: $SERVICE_NAME
   labels:
     app: $SERVICE_NAME
-  namespace: core-atto
+  namespace: $NAMESPACE
 spec:
   replicas: 1
   selector:
@@ -18,6 +18,13 @@ spec:
       containers:
         - name: $SERVICE_NAME
           image: $IMAGE_FULL_NAME
+          resources:
+            requests:
+              memory: $MEMORY_REQUEST
+              cpu: $CPU_REQUEST
+            limits:
+              memory: $MEMORY_LIMIT
+              cpu: $CPU_LIMIT
           imagePullPolicy: Always
           ports:
             - containerPort: 5000
@@ -33,7 +40,7 @@ metadata:
   labels:
     app: $SERVICE_NAME
   name: $SERVICE_NAME
-  namespace: core-atto
+  namespace: $NAMESPACE
 spec:
   type: ClusterIP
   ports:
