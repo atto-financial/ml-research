@@ -23,9 +23,13 @@ def data_cleaning_fsk_v1(raw_dat: pd.DataFrame, outlier_method: str = 'median') 
         # Define column types
         target_column = 'ust'
         categorical_columns = []  
+        # numerical_columns = [
+        #     'fht1', 'fht2', 'fht3', 'fht4', 'fht5', 'fht6', 'fht7', 'fht8',
+        #     'set1', 'set2', 'kmsi1', 'kmsi2', 'kmsi3', 'kmsi4', 'kmsi5', 'kmsi6', 'kmsi7', 'kmsi8'
+        # ]
         numerical_columns = [
             'fht1', 'fht2', 'fht3', 'fht4', 'fht5', 'fht6', 'fht7', 'fht8',
-            'set1', 'set2', 'kmsi1', 'kmsi2', 'kmsi3', 'kmsi4', 'kmsi5', 'kmsi6', 'kmsi7', 'kmsi8'
+             'kmsi1', 'kmsi2', 'kmsi3', 'kmsi4', 'kmsi5', 'kmsi6', 'kmsi7', 'kmsi8'
         ]
         required_cols = [target_column] + categorical_columns + numerical_columns + ['user_id']
         missing_cols = [col for col in required_cols if col not in clean_dat.columns]
