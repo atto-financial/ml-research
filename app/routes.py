@@ -16,6 +16,7 @@ from app.prediction.ans_prediction import fk_answers_v1
 from typing import Dict, Tuple, List, Optional
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestClassifier
+from app.utils.feature import extract_feature_answers
 import sklearn
 import joblib
 
@@ -118,41 +119,39 @@ def configure_routes(app):
     def predict():
         try:
             data = request.get_json()
-            
             if not data:
                 logger.error("No JSON data provided in request")
                 return jsonify({"error": "No JSON data provided"}), 400
-
             application_label = data.get('application_label', '')
             answers = data.get('answers', {})
             model_path = data.get('model_path', None)
             scaler_path = data.get('scaler_path', None)
+            metadata_path = data.get('metadata_path', None)
             
-            from app.utils.feature import extract_feature_answers
-            logger.info(f"raw_answers : {answers}")
-            answers_order = [
-                {"group": "fht", "version": "1"},
-                {"group": "kmsi", "version": "1"}
-            ]
-            answers = extract_feature_answers(answers, answers_order)
-            logger.info(f"extracted_answers : {answers}")
+            # logger.info(f"raw_answers : {answers}")
+            # answers_order = [
+            #     {"group": "fht", "version": "1"},
+            #     {"group": "kmsi", "version": "1"}
+            # ]
+            # answers = extract_feature_answers(answers, answers_order)
+            # logger.info(f"extracted_answers : {answers}")
 
-            if not isinstance(answers, dict):
-                logger.error(f"Invalid answers format: {type(answers)}")
-                return jsonify({"error": "Answers must be a dictionary"}), 400
-            if not answers:
-                logger.error("Answers dictionary is empty")
-                return jsonify({"error": "Answers dictionary is empty"}), 400
+            # if not isinstance(answers, dict):
+            #     logger.error(f"Invalid answers format: {type(answers)}")
+            #     return jsonify({"error": "Answers must be a dictionary"}), 400
+            # if not answers:
+            #     logger.error("Answers dictionary is empty")
+            #     return jsonify({"error": "Answers dictionary is empty"}), 400
 
             if application_label == "rdf50_v2.0_fk_v1.0":
                 results, status = fk_answers_v1(
-                    answers, model_path=model_path, scaler_path=scaler_path)
-                results['application_label'] = application_label
-                logger.info(f"Prediction successful for application_label: {application_label}")
+                    answers, metadata_path=metadata_path, model_path=model_path, scaler_path=scaler_path
+                )
+                if status == 200:
+                    logger.info(f"Prediction successful for application_label: {application_label}")
                 return jsonify(results), status
             else:
-                logger.error(
-                    f"Unsupported application_label: {application_label}")
+                logger.error(f"Unsupported application_label: {application_label}")
                 return jsonify({"error": f"Unsupported application_label: {application_label}"}), 400
         except Exception as e:
             logger.error(f"Error in /predict: {str(e)}", exc_info=True)
