@@ -17,8 +17,8 @@ env:
   NAMESPACE: core-atto
   MEMORY_REQUEST: 128Mi
   MEMORY_LIMIT: 512Mi
-  CPU_REQUEST: 100m
-  CPU_LIMIT: 300m
+  CPU_REQUEST: 10m
+  CPU_LIMIT: 200m
 
 jobs:
   setup-build-publish-deploy:
