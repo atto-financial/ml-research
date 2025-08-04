@@ -126,14 +126,14 @@ def fk_answers_v1(answers: Dict, metadata_path: str = None, model_path: str = No
         cus_ans_data = pd.DataFrame([cus_ans], columns=columns)
         logger.debug(f"Input data shape: {cus_ans_data.shape}, columns: {list(cus_ans_data.columns)}")
         
-        from app.utils.feature import transform_dataframe_to_dict
-        cus_ans_data_screen = transform_dataframe_to_dict(cus_ans_data)
-        screening_passed, screening_msg = screen_fsk_answers(cus_ans_data_screen)
-        
         cus_transformed_data = data_transforming_fsk_v1(cus_ans_data)
         if not validate_data(cus_transformed_data, "Transformed data"):
             logger.error("Data transformation failed in data_transforming_fsk_v1")
             raise ValueError("Data transformation failed in data_transforming_fsk_v1")
+        
+        from app.utils.feature import transform_dataframe_to_dict
+        cus_ans_data_screen = transform_dataframe_to_dict(cus_transformed_data)
+        screening_passed, screening_msg = screen_fsk_answers(cus_ans_data_screen)
         
         cus_engineered_data = data_engineering_fsk_v1(cus_transformed_data)
         if not validate_data(cus_engineered_data, "Engineered data"):
