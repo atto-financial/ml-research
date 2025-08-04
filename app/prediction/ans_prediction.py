@@ -118,7 +118,6 @@ def fk_answers_v1(answers: Dict, metadata_path: str = None, model_path: str = No
         logger.debug(f"kmsi: {kmsi}")
         logger.debug(f"Validated input: fht={len(fht)}, kmsi={len(kmsi)}")
         
-        screening_passed, screening_msg = screen_fsk_answers(answers)
         cus_ans = fht + kmsi
         columns = (
             [f'fht{i+1}' for i in range(len(fht))] +
@@ -126,6 +125,10 @@ def fk_answers_v1(answers: Dict, metadata_path: str = None, model_path: str = No
         )
         cus_ans_data = pd.DataFrame([cus_ans], columns=columns)
         logger.debug(f"Input data shape: {cus_ans_data.shape}, columns: {list(cus_ans_data.columns)}")
+        
+        from app.utils.feature import transform_dataframe_to_dict
+        cus_ans_data_screen = transform_dataframe_to_dict(cus_ans_data)
+        screening_passed, screening_msg = screen_fsk_answers(cus_ans_data_screen)
         
         cus_transformed_data = data_transforming_fsk_v1(cus_ans_data)
         if not validate_data(cus_transformed_data, "Transformed data"):
