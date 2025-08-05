@@ -118,7 +118,6 @@ def fk_answers_v1(answers: Dict, metadata_path: str = None, model_path: str = No
         logger.debug(f"kmsi: {kmsi}")
         logger.debug(f"Validated input: fht={len(fht)}, kmsi={len(kmsi)}")
         
-        screening_passed, screening_msg = screen_fsk_answers(answers)
         cus_ans = fht + kmsi
         columns = (
             [f'fht{i+1}' for i in range(len(fht))] +
@@ -131,6 +130,10 @@ def fk_answers_v1(answers: Dict, metadata_path: str = None, model_path: str = No
         if not validate_data(cus_transformed_data, "Transformed data"):
             logger.error("Data transformation failed in data_transforming_fsk_v1")
             raise ValueError("Data transformation failed in data_transforming_fsk_v1")
+        
+        from app.utils.feature import transform_dataframe_to_dict
+        cus_ans_data_screen = transform_dataframe_to_dict(cus_transformed_data)
+        screening_passed, screening_msg = screen_fsk_answers(cus_ans_data_screen)
         
         cus_engineered_data = data_engineering_fsk_v1(cus_transformed_data)
         if not validate_data(cus_engineered_data, "Engineered data"):

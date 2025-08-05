@@ -13,3 +13,11 @@ def extract_feature_answers(answers, answers_order):
             result[group_name] = choice_numbers
     
     return result
+
+def transform_dataframe_to_dict(df):
+    prefixes = set(col.rstrip('0123456789') for col in df.columns)
+    result = {
+        prefix: df[[col for col in df.columns if col.startswith(prefix)]].iloc[0].tolist()
+        for prefix in prefixes
+    }
+    return result
