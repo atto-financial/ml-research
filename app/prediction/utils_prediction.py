@@ -32,9 +32,9 @@ def screen_fsk_answers(answers: Dict[str, List[str]]) -> Tuple[bool, Optional[st
         except ValueError:
             logger.error(f"Non-integer values in {key}")
             return False, f"Non-integer values in {key}"
-        if not all(1 <= v <= 3 for v in vals):
-            logger.error(f"Values in {key} must be between 1 and 3")
-            return False, f"Values in {key} must be between 1 and 3"
+        if not all(x in {1, 2, 3} for x in all_answers):
+            logger.error("Invalid answer values detected")
+            return False, "Invalid answer values detected"
         all_answers.extend(vals)
     n = len(all_answers)
     if n == 0:
@@ -56,7 +56,7 @@ def screen_fsk_answers(answers: Dict[str, List[str]]) -> Tuple[bool, Optional[st
     from collections import Counter
     counter = Counter(all_answers)
     total = len(all_answers)
-    msg = ", ".join(f"{k} ({int((v / total) * 100)}%)" for k, v in sorted(counter.items()))
+    msg = ", ".join(f"{k} ({(v / total) * 100:.2f}%)" for k, v in sorted(counter.items()))
     logger.info("Answers passed screening")
     return True, msg
 
