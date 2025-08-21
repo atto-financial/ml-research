@@ -9,7 +9,7 @@ from app.data.data_cleaning import data_cleaning_fsk_v1
 from app.data.data_transforming import data_transforming_fsk_v1
 from app.data.data_engineering import data_engineering_fsk_v1
 from app.data.data_preprocessing import data_preprocessing
-from app.models.correlation import compute_correlations
+from app.models.Utils_statistics import compute_correlations
 from app.models.lucis import train_model, select_top_features, ModelConfig
 from app.utils_model import ensure_paths, load_latest_model_metadata, save_all_artifacts, features_importance, validate_data, validate_features, setup_paths
 from app.prediction.ans_prediction import fk_answers_v1

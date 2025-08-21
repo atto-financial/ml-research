@@ -16,7 +16,7 @@ from app.data.data_cleaning import data_cleaning_fsk_v1
 from app.data.data_transforming import data_transforming_fsk_v1
 from app.data.data_engineering import data_engineering_fsk_v1
 from app.data.data_preprocessing import data_preprocessing
-from app.models.correlation import compute_correlations
+from app.models.Utils_statistics import compute_correlations
 
 logging.basicConfig(
     level=logging.INFO,
