@@ -1,6 +1,9 @@
 name: (DEV) Build and Deploy [ml-module]
 
 on:
+  push:
+    branches:
+      - develop
   pull_request:
     branches:
       - "staging"
