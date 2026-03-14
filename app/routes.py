@@ -9,16 +9,18 @@ from app.data.data_cleaning import data_cleaning_fsk_v1
 from app.data.data_transforming import data_transforming_fsk_v1
 from app.data.data_engineering import data_engineering_fsk_v1
 from app.data.data_preprocessing import data_preprocessing
-from app.models.correlation import compute_correlations
+from app.models.Utils_statistics import compute_correlations
 from app.models.lucis import train_model, select_top_features, ModelConfig
-from app.utils_model import ensure_paths, load_latest_model_metadata, save_all_artifacts, features_importance, validate_data, validate_features, setup_paths
+from app.utils.utils_model import ensure_paths, load_latest_model_metadata, save_all_artifacts, features_importance, validate_data, validate_features, setup_paths
 from app.prediction.ans_prediction import fk_answers_v1
 from typing import Dict, Tuple, List, Optional
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestClassifier
-from app.utils.feature import extract_feature_answers
-import sklearn
 import joblib
+from app.utils.utils_mlflow import init_mlflow, log_model_to_mlflow
+
+# Initialize MLflow
+init_mlflow()
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -141,9 +143,11 @@ def configure_routes(app):
                 logger.error("Answers dictionary is empty")
                 return jsonify({"error": "Answers dictionary is empty"}), 400
 
+            user_id = data.get('user_id')
+            
             if application_label == "rdf50_v3.0_fk_v1.0":
                 results, status = fk_answers_v1(
-                    answers, metadata_path=metadata_path, model_path=model_path, scaler_path=scaler_path
+                    answers, metadata_path=metadata_path, model_path=model_path, scaler_path=scaler_path, user_id=user_id
                 )
                 if status == 200:
                     logger.info(f"Prediction successful for application_label: {application_label}")
@@ -274,6 +278,22 @@ def configure_routes(app):
                 if artifact_info is None:
                     logger.error("Failed to save artifacts")
                     return jsonify({"error": "Failed to save artifacts"}), 500
+                
+                # Log to MLflow
+                mlflow_params = {
+                    'n_estimators': config.n_estimators,
+                    'max_depth': config.max_depth,
+                    'min_samples_split': config.min_samples_split,
+                    'random_state': config.random_state,
+                    'scoring': config.scoring
+                }
+                log_model_to_mlflow(
+                    model=model,
+                    params=mlflow_params,
+                    metrics=metrics_summary,
+                    features=final_features,
+                    scaler=scaler
+                )
             else:
                 artifact_info = {
                     'scaler_path': latest_metadata.get('scaler_path', ''),

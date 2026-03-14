@@ -2,7 +2,6 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# TEST: /predict request body's feature answers extracting (dynamically)
 from app.utils.feature import extract_feature_answers
 def test_extract_feature_answers():
     answers = [
@@ -83,8 +82,6 @@ def test_extract_feature_answers():
     result_empty = extract_feature_answers([], [])
     print(f"Empty inputs result: {result_empty}")
     print()
-
-# TEST: ...
 
 if __name__ == "__main__":
     test_extract_feature_answers()

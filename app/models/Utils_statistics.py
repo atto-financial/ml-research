@@ -50,7 +50,6 @@ def compute_correlations(scale_clean_engineer_dat: pd.DataFrame) -> Optional[pd.
         logger.error(f"Error during correlation computation: {str(e)}")
         return None
 
-
 def visualize_correlations(corr_dat: pd.DataFrame, output_dir: str = 'plots', plot_prefix: str = None) -> None:
     if corr_dat is None or corr_dat.empty:
         raise ValueError("Correlation DataFrame is None or empty.")

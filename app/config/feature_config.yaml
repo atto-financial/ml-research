@@ -1,0 +1,48 @@
+groups:
+  spending: [fht1, fht2]
+  saving: [fht3, fht4]
+  payoff: [fht5, fht6]
+  planning: [fht7, fht8]
+  loan: [kmsi1, kmsi2]
+  worship: [kmsi3, kmsi4]
+  extravagance: [kmsi5, kmsi6]
+  vigilance: [kmsi7, kmsi8]
+
+mappings:
+  fht:
+    columns: [fht1, fht2, fht3, fht4, fht5, fht6, fht7, fht8]
+    mapping: {1: 3, 2: 2, 3: 1}
+  kmsi_reversed:
+    columns: [kmsi7, kmsi8]
+    mapping: {1: 3, 2: 2, 3: 1}
+  kmsi_standard:
+    columns: [kmsi1, kmsi2, kmsi3, kmsi4, kmsi5, kmsi6]
+    mapping: {1: 1, 2: 2, 3: 3}
+
+ratios:
+  - name: loan_to_saving_ratio
+    numerator: loan_score_sum
+    denominator: saving_score_sum
+  - name: worship_to_vigilance_ratio
+    numerator: worship_score_sum
+    denominator: vigilance_score_sum
+  - name: extravagance_to_spending_ratio
+    numerator: extravagance_score_sum
+    denominator: spending_score_sum
+  - name: worship_to_payoff_ratio
+    numerator: worship_score_sum
+    denominator: payoff_score_sum
+
+interactions:
+  - name: loan_extravagance_interaction
+    col1: loan_score_avg
+    col2: extravagance_score_avg
+  - name: payoff_planning_interaction
+    col1: payoff_score_avg
+    col2: planning_score_avg
+  - name: spending_vigilance_interaction
+    col1: spending_score_avg
+    col2: vigilance_score_avg
+  - name: worship_extravagance_interaction
+    col1: worship_score_avg
+    col2: extravagance_score_avg

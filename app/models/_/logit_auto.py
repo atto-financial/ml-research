@@ -13,7 +13,7 @@ from app.data.data_cleaning import data_cleaning_fsk_v1
 from app.data.data_transforming import data_transform_fsk_v1
 from app.data.data_engineering import data_engineer_fsk_v1
 from app.data.data_preprocessing import data_preprocessing
-from app.models.correlation import compute_correlations
+from app.models.Utils_statistics import compute_correlations
 
 logging.basicConfig(
     level=logging.INFO,
@@ -213,10 +213,9 @@ def train_logistic_model(scale_clean_engineer_dat: pd.DataFrame, selected_featur
 
 if __name__ == "__main__":
     
-    output_dir = "output_data"
-    scaler_dir = "save_scaler"
-    output_dir = "output_data"
-    model_dir = "save_models"
+    output_dir = "outputs/data"
+    scaler_dir = "artifacts/scalers"
+    model_dir = "artifacts/models"
     
     try:
         os.makedirs(output_dir, exist_ok=True)
