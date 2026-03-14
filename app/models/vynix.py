@@ -382,9 +382,9 @@ def train_model(scale_clean_engineer_dat: pd.DataFrame, selected_features: List[
 
 if __name__ == "__main__":
     config = ModelConfig()
-    output_dir = "output_data"
-    scaler_dir = "save_scaler"
-    model_dir = "save_models"
+    output_dir = "outputs/data"
+    scaler_dir = "artifacts/scalers"
+    model_dir = "artifacts/models"
 
     for directory in [output_dir, scaler_dir, model_dir]:
         os.makedirs(directory, exist_ok=True)

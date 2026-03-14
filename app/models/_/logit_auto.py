@@ -213,10 +213,9 @@ def train_logistic_model(scale_clean_engineer_dat: pd.DataFrame, selected_featur
 
 if __name__ == "__main__":
     
-    output_dir = "output_data"
-    scaler_dir = "save_scaler"
-    output_dir = "output_data"
-    model_dir = "save_models"
+    output_dir = "outputs/data"
+    scaler_dir = "artifacts/scalers"
+    model_dir = "artifacts/models"
     
     try:
         os.makedirs(output_dir, exist_ok=True)

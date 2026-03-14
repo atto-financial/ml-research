@@ -1,0 +1,11 @@
+version: 2
+
+sources:
+  - name: raw_data
+    database: prod-core-atto
+    schema: public
+    tables:
+      - name: users
+      - name: answers
+      - name: features
+      - name: loan_summary_statuses

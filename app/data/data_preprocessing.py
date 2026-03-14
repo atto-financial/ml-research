@@ -153,8 +153,8 @@ def data_preprocessing(
         return None, None
 
 if __name__ == "__main__":
-    output_dir = "output_data"
-    scaler_dir = "save_scaler"
+    output_dir = "outputs/data"
+    scaler_dir = "artifacts/scalers"
     os.makedirs(output_dir, exist_ok=True)
     os.makedirs(scaler_dir, exist_ok=True)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")

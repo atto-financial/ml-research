@@ -19,7 +19,7 @@ from app.data.data_transforming import data_transforming_fsk_v1
 from app.data.data_engineering import data_engineering_fsk_v1
 from app.data.data_preprocessing import data_preprocessing
 from app.models.Utils_statistics import compute_correlations
-from app.utils_model import features_importance, validate_data
+from app.utils.utils_model import features_importance, validate_data
 
 logging.basicConfig(
     level=logging.INFO,
@@ -493,9 +493,9 @@ def train_model(scale_clean_engineer_dat: pd.DataFrame, selected_features: List[
 
 if __name__ == "__main__":
     config = ModelConfig()
-    output_dir = "output_data"
-    scaler_dir = "save_scaler"
-    model_dir = "save_models"
+    output_dir = "outputs/data"
+    scaler_dir = "artifacts/scalers"
+    model_dir = "artifacts/models"
 
     for directory in [output_dir, scaler_dir, model_dir]:
         os.makedirs(directory, exist_ok=True)

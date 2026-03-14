@@ -15,9 +15,9 @@ logger = logging.getLogger(__name__)
 
 def setup_paths(timestamp: str) -> Dict[str, Tuple[str, str]]:
     return {
-        'scaler': ("save_scalers", f"custom_scaler_{timestamp}.pkl"),
-        'model': ("save_models", f"custom_model_{timestamp}.pkl"),
-        'metadata': ("output_data", f"metadata_{timestamp}.csv")
+        'scaler': ("artifacts/scalers", f"custom_scaler_{timestamp}.pkl"),
+        'model': ("artifacts/models", f"custom_model_{timestamp}.pkl"),
+        'metadata': ("outputs/data", f"metadata_{timestamp}.csv")
     }
 
 def calculate_checksum(file_path: str) -> str:
@@ -192,7 +192,7 @@ def save_metadata_csv(metadata: Dict, directory: str, filename: str) -> Tuple[st
         return "", ""
 
 def load_latest_model_metadata(model_dir: str) -> Dict:
-    metadata_dir = "output_data"
+    metadata_dir = "outputs/data"
     try:
         if not os.path.exists(metadata_dir):
             logger.warning(f"Metadata directory not found: {metadata_dir}. Returning empty metadata.")

@@ -8,7 +8,7 @@ import pandas as pd
 from pathlib import Path
 from joblib import load
 from sklearn.preprocessing import StandardScaler
-from app.utils_model import validate_features, load_and_verify_artifact, calculate_checksum
+from app.utils.utils_model import validate_features, load_and_verify_artifact, calculate_checksum
 
 
 logging.basicConfig(
