@@ -5,3 +5,7 @@ venv
 .DS_Store
 .DS_Store/*
 */.DS_Store
+
+# Dagster
+*.db
+.tmp_dagster_home_*
