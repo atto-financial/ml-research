@@ -20,7 +20,8 @@ graph TD
 
     subgraph "Orchestration & Workflow"
         Dagster[Dagster Explorer] --> dbt
-        Dagster --> TrainingJob[Training Pipeline]
+        Dagster -.->|Cache Table| DuckDB[(DuckDB Local Cache)]
+        DuckDB --> TrainingJob[Training Pipeline]
         Dagster --> Inference[Batch Inference]
     end
 
@@ -53,8 +54,12 @@ graph TD
 ### 2. Feature Store (`/feature_repo`)
 - **Feast**: จัดการ Feature เพื่อให้เกิดความสอดคล้องกัน (Consistency) ระหว่างช่วง Training (Offline) และ Prediction (Online).
 
-### 3. Orchestration (`/dagster_project`)
-- **Dagster**: เป็นตัวควบคุม (Orchestrator) ลำดับการทำงานทั้งหมด (Assets & Ops).
+### 3. Orchestration & Local Optimization (`/dagster_project` & `DuckDB`)
+- **Dagster**: เป็นตัวควบคุม (Orchestrator) ลำดับการทำงานทั้งหมด (Software-Defined Assets).
+- **DuckDB**: ใช้สร้าง Local Cache ระหว่างรันช่วย Optimize ลดระยะเวลาดึงข้อมูลและลด I/O Network.
+
+### 4. Function-based DAG (`Hamilton`)
+- **Hamilton**: สกัดเอา Logic การเตรียมข้อมูล (เช่น SMOTE, Multicollinearity VIF) แยกมาอยู่ในรูปแบบกราฟเพื่อให้อ่านง่ายและเทสได้ง่าย (ภายใน `/app/models/`).
 
 ### 4. Experiment Tracking (`/mlruns`)
 - **MLflow**: บันทึก Parameters, Metrics และไฟล์ Model Artifacts.

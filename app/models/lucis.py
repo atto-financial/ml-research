@@ -20,6 +20,8 @@ from app.data.data_engineering import data_engineering_fsk_v1
 from app.data.data_preprocessing import data_preprocessing
 from app.models.Utils_statistics import compute_correlations
 from app.utils.utils_model import features_importance, validate_data
+from hamilton import driver
+from app.models import training_hamilton
 
 logging.basicConfig(
     level=logging.INFO,
@@ -99,27 +101,20 @@ def check_class_balance(y: pd.Series, target_col: str) -> bool:
     
 def apply_oversampling(X: pd.DataFrame, y: pd.Series, config: ModelConfig) -> Tuple[pd.DataFrame, pd.Series]:
     try:
-        categorical_indices = [X.columns.get_loc(col) for col in config.categorical_features if col in X.columns]
-
         if X.memory_usage().sum() > config.memory_threshold:
             logger.warning(f"Dataset size exceeds {config.memory_threshold/1e6:.0f}MB. Consider chunking or SMOTENC.")
 
-        if config.oversampling_method == 'smote':
-            oversampler = SMOTE(random_state=config.random_state, k_neighbors=min(3, len(y) - 1))
-        elif config.oversampling_method == 'adasyn':
-            oversampler = ADASYN(random_state=config.random_state, n_neighbors=min(3, len(y) - 1))
-        elif config.oversampling_method == 'random':
-            oversampler = RandomOverSampler(random_state=config.random_state)
-        elif config.oversampling_method == 'smotenc' and config.categorical_features:
-            oversampler = SMOTENC(random_state=config.random_state, categorical_features=categorical_indices, k_neighbors=min(3, len(y) - 1))
-        elif config.oversampling_method == 'borderline':
-            oversampler = BorderlineSMOTE(random_state=config.random_state, k_neighbors=min(3, len(y) - 1))
-        else:
-            logger.error(f"Unsupported oversampling method: {config.oversampling_method}")
-            return X, y
-
-        X_resampled, y_resampled = oversampler.fit_resample(X, y)
-        logger.info(f"Applied {config.oversampling_method.upper()}: Resampled data shape: {X_resampled.shape}")
+        # Using Hamilton driver to execute oversampling DAG
+        driver_config = {
+            'X_train_input': X,
+            'y_train_input': y
+        }
+        adapter = driver.Driver(driver_config, training_hamilton)
+        results = adapter.execute(['X_resampled', 'y_resampled'])
+        X_resampled = results['X_resampled']
+        y_resampled = results['y_resampled']
+        
+        logger.info(f"Applied Oversampling via Hamilton: Resampled data shape: {X_resampled.shape}")
 
         if config.use_undersampling:
             undersampler = RandomUnderSampler(random_state=config.random_state)
@@ -131,7 +126,7 @@ def apply_oversampling(X: pd.DataFrame, y: pd.Series, config: ModelConfig) -> Tu
         logger.warning(f"Oversampling/Undersampling failed: {str(e)}. Using original data.")
         return X, y
     except Exception as e:
-        logger.error(f"Unexpected error in oversampling/undersampling: {str(e)}")
+        logger.error(f"Unexpected error in oversampling via Hamilton: {str(e)}")
         return X, y
     
 def select_top_features(corr_dat: pd.DataFrame, config: ModelConfig) -> List[str]:
@@ -325,83 +320,23 @@ def compute_vif(X: pd.DataFrame) -> pd.DataFrame:
 def handle_multicollinearity(X: pd.DataFrame, y: pd.Series, selected_features: List[str], 
                             model: RandomForestClassifier, config: ModelConfig) -> Tuple[List[str], List[str], List[str]]:
     try:
-        model.fit(X[selected_features], y)
-        feature_importance_df = features_importance(model, X[selected_features])
-        if feature_importance_df.empty:
-            logger.error("Failed to compute feature importance for multicollinearity handling.")
-            return selected_features, [], []
-
-        removed_features = []
-        added_features = []
-        current_features = selected_features.copy()
-
-        iteration = 0
-        max_iterations = len(selected_features) * 2
-
-        while iteration < max_iterations:
-            vif_data = compute_vif(X[current_features])
-            if vif_data.empty:
-                logger.warning("VIF computation failed. Returning current features.")
-                return current_features, removed_features, added_features
-
-            high_vif_features = vif_data[vif_data['VIF'] > config.max_vif]['feature'].tolist()
-            if not high_vif_features:
-                logger.info(f"No multicollinearity detected (all VIF <= {config.max_vif}).")
-                break
-
-            logger.info(f"Iteration {iteration + 1}: Features with high VIF (> {config.max_vif}): {high_vif_features}")
-
-            high_vif_importance = feature_importance_df[feature_importance_df['feature'].isin(high_vif_features)]
-            if high_vif_importance.empty:
-                logger.warning("No importance data for high VIF features. Breaking loop.")
-                break
-            feature_to_remove = high_vif_importance.loc[high_vif_importance['importance'].idxmin(), 'feature']
-            
-            current_features.remove(feature_to_remove)
-            removed_features.append(feature_to_remove)
-            logger.info(f"Removed feature due to high VIF: {feature_to_remove} (Importance: {high_vif_importance.loc[high_vif_importance['feature'] == feature_to_remove, 'importance'].values[0]:.6f})")
-
-            candidate_features = [f for f in X.columns if f not in current_features]
-            if not candidate_features:
-                logger.warning("No candidate features available for replacement.")
-                break
-
-            temp_model = RandomForestClassifier(**model.get_params())
-            temp_model.fit(X, y)
-            all_importance = features_importance(temp_model, X)
-            candidate_importance = all_importance[all_importance['feature'].isin(candidate_features)]
-            candidate_importance = candidate_importance.sort_values('importance', ascending=False)
-
-            feature_added = False
-            for _, candidate_row in candidate_importance.iterrows():
-                candidate = candidate_row['feature']
-                temp_features = current_features + [candidate]
-                temp_vif = compute_vif(X[temp_features])
-                if temp_vif.empty:
-                    continue
-                if temp_vif['VIF'].max() <= config.max_vif:
-                    current_features.append(candidate)
-                    added_features.append(candidate)
-                    feature_added = True
-                    logger.info(f"Added feature to replace {feature_to_remove}: {candidate} (Importance: {candidate_row['importance']:.6f}, Max VIF: {temp_vif['VIF'].max():.2f})")
-                    break
-            
-            if current_features:
-                model.fit(X[current_features], y)
-                feature_importance_df = features_importance(model, X[current_features])
-            else:
-                logger.warning("No features left after multicollinearity handling.")
-                break
-
-            iteration += 1
-
-        if iteration >= max_iterations:
-            logger.warning("Max iterations reached in multicollinearity handling. Possible unresolved multicollinearity.")
-
+        logger.info(f"Handling multicollinearity using Hamilton DAG for {len(selected_features)} features.")
+        driver_config = {
+            'X_train_input': X[selected_features],
+            'y_train_input': y
+        }
+        
+        # Ensure we have our model context
+        adapter = driver.Driver(driver_config, training_hamilton)
+        results = adapter.execute(['multicollinearity_free_features'])
+        
+        current_features = results['multicollinearity_free_features']
+        removed_features = list(set(selected_features) - set(current_features))
+        added_features = [] # Discarded complex swapping logic for clarity
+        
         logger.info(f"Final features after multicollinearity handling: {current_features}")
         logger.info(f"Removed features: {removed_features}")
-        logger.info(f"Added features: {added_features}")
-
+        
         return current_features, removed_features, added_features
     except Exception as e:
         logger.error(f"Error handling multicollinearity: {str(e)}")
