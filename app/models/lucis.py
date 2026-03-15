@@ -104,15 +104,17 @@ def apply_oversampling(X: pd.DataFrame, y: pd.Series, config: ModelConfig) -> Tu
         if X.memory_usage().sum() > config.memory_threshold:
             logger.warning(f"Dataset size exceeds {config.memory_threshold/1e6:.0f}MB. Consider chunking or SMOTENC.")
 
-        # Using Hamilton driver to execute oversampling DAG
+        # Using Hamilton driver to execute oversampling DAG.
+        # We fetch 'resampled_data' (the Tuple node) because Hamilton cannot
+        # split a returned Tuple into two separate dict keys reliably.
         driver_config = {
             'X_train_input': X,
             'y_train_input': y
         }
         adapter = driver.Driver(driver_config, training_hamilton)
-        results = adapter.execute(['X_resampled', 'y_resampled'])
-        X_resampled = results['X_resampled']
-        y_resampled = results['y_resampled']
+        results = adapter.execute(['resampled_data'])
+        resampled = results['resampled_data']
+        X_resampled, y_resampled = resampled[0], resampled[1]
         
         logger.info(f"Applied Oversampling via Hamilton: Resampled data shape: {X_resampled.shape}")
 
@@ -330,9 +332,14 @@ def handle_multicollinearity(X: pd.DataFrame, y: pd.Series, selected_features: L
         adapter = driver.Driver(driver_config, training_hamilton)
         results = adapter.execute(['multicollinearity_free_features'])
         
-        current_features = results['multicollinearity_free_features']
+        # Hamilton wraps list return values as a pd.Series; coerce back to a
+        # plain Python list so that downstream boolean checks like
+        # `if not selected_features` don't raise "truth value of a Series is
+        # ambiguous".
+        raw = results['multicollinearity_free_features']
+        current_features = raw.tolist() if hasattr(raw, 'tolist') else list(raw)
         removed_features = list(set(selected_features) - set(current_features))
-        added_features = [] # Discarded complex swapping logic for clarity
+        added_features = []  # Discarded complex swapping logic for clarity
         
         logger.info(f"Final features after multicollinearity handling: {current_features}")
         logger.info(f"Removed features: {removed_features}")

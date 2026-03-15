@@ -27,7 +27,7 @@ spec:
               cpu: $CPU_LIMIT
           imagePullPolicy: Always
           ports:
-            - containerPort: 5000
+            - containerPort: 5001
           envFrom:
             - configMapRef:
                 name: core-atto-ml-module-config
@@ -46,6 +46,6 @@ spec:
   ports:
     - protocol: TCP
       port: 80
-      targetPort: 5000
+      targetPort: 5001
   selector:
     app: $SERVICE_NAME

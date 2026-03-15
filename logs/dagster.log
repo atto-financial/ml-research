@@ -1,0 +1,259 @@
+[32m2026-03-15 15:35:38 +0700[0m - dagster - [34mINFO[0m - Loaded environment variables from .env file: DB_HOST,DB_USER,DB_PASS,DB_NAME,DB_PORT,DAGSTER_HOME
+[32m2026-03-15 15:35:39 +0700[0m - dagster - [34mINFO[0m - Launching Dagster services...
+/Users/macpro_phichet/dev/ml-research/venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+[32m2026-03-15 15:35:50 +0700[0m - dagster.daemon - [34mINFO[0m - Instance is configured with the following daemons: ['AssetDaemon', 'BackfillDaemon', 'FreshnessDaemon', 'QueuedRunCoordinatorDaemon', 'SchedulerDaemon', 'SensorDaemon']
+[32m2026-03-15 15:35:50 +0700[0m - dagster - [34mWARNING[0m - /Users/macpro_phichet/dev/ml-research/venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+
+[32m2026-03-15 15:35:50 +0700[0m - dagster-webserver - [34mINFO[0m - Loaded environment variables from .env file: DB_HOST,DB_USER,DB_PASS,DB_NAME,DB_PORT,DAGSTER_HOME
+[32m2026-03-15 15:35:51 +0700[0m - dagster-webserver - [34mINFO[0m - Serving dagster-webserver on http://127.0.0.1:3000 in process 77964
+[32m2026-03-15 15:36:51 +0700[0m - dagster.daemon.QueuedRunCoordinatorDaemon - [34mINFO[0m - Priority sorting and checking tag concurrency limits for queued runs.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1773563811.763666 2574030 fork_posix.cc:71] Other threads are currently calling into gRPC, skipping fork() handlers
+I0000 00:00:1773563811.789000 2574030 fork_posix.cc:71] Other threads are currently calling into gRPC, skipping fork() handlers
+[32m2026-03-15 15:36:56 +0700[0m - dagster.daemon.QueuedRunCoordinatorDaemon - [34mINFO[0m - Launched 1 runs.
+2026-03-15 15:36:56 +0700 - dagster - DEBUG - __ASSET_JOB - 90ee3ee4-4afd-4d17-8ee4-ca2f21a613ea - 78049 - RUN_START - Started execution of run for "__ASSET_JOB".
+2026-03-15 15:36:56 +0700 - dagster - DEBUG - __ASSET_JOB - 90ee3ee4-4afd-4d17-8ee4-ca2f21a613ea - 78049 - ENGINE_EVENT - Executing steps using multiprocess executor: parent process (pid: 78049)
+2026-03-15 15:36:56 +0700 - dagster - DEBUG - __ASSET_JOB - 90ee3ee4-4afd-4d17-8ee4-ca2f21a613ea - 78049 - database_metadata - STEP_WORKER_STARTING - Launching subprocess for "database_metadata".
+2026-03-15 15:37:00 +0700 - dagster - DEBUG - __ASSET_JOB - 90ee3ee4-4afd-4d17-8ee4-ca2f21a613ea - 78056 - database_metadata - STEP_WORKER_STARTED - Executing step "database_metadata" in subprocess.
+2026-03-15 15:37:00 +0700 - dagster - DEBUG - __ASSET_JOB - 90ee3ee4-4afd-4d17-8ee4-ca2f21a613ea - 78056 - database_metadata - RESOURCE_INIT_STARTED - Starting initialization of resources [io_manager].
+2026-03-15 15:37:00 +0700 - dagster - DEBUG - __ASSET_JOB - 90ee3ee4-4afd-4d17-8ee4-ca2f21a613ea - 78056 - database_metadata - RESOURCE_INIT_SUCCESS - Finished initialization of resources [io_manager].
+2026-03-15 15:37:00 +0700 - dagster - DEBUG - __ASSET_JOB - 90ee3ee4-4afd-4d17-8ee4-ca2f21a613ea - 78056 - LOGS_CAPTURED - Started capturing logs in process (pid: 78056).
+2026-03-15 15:37:00 +0700 - dagster - DEBUG - __ASSET_JOB - 90ee3ee4-4afd-4d17-8ee4-ca2f21a613ea - 78056 - database_metadata - STEP_START - Started execution of step "database_metadata".
+2026-03-15 15:37:01 +0700 - dagster - DEBUG - __ASSET_JOB - 90ee3ee4-4afd-4d17-8ee4-ca2f21a613ea - 78056 - database_metadata - STEP_OUTPUT - Yielded output "result" of type "dict". (Type check passed).
+2026-03-15 15:37:01 +0700 - dagster - DEBUG - __ASSET_JOB - 90ee3ee4-4afd-4d17-8ee4-ca2f21a613ea - database_metadata - Writing file at: /Users/macpro_phichet/dev/ml-research/.dagster_home/storage/database_metadata using PickledObjectFilesystemIOManager...
+2026-03-15 15:37:01,930 - INFO - Context impl SQLiteImpl.
+2026-03-15 15:37:01,930 - INFO - Will assume non-transactional DDL.
+2026-03-15 15:37:02 +0700 - dagster - DEBUG - __ASSET_JOB - 90ee3ee4-4afd-4d17-8ee4-ca2f21a613ea - 78056 - database_metadata - ASSET_MATERIALIZATION - Materialized value database_metadata.
+2026-03-15 15:37:02 +0700 - dagster - DEBUG - __ASSET_JOB - 90ee3ee4-4afd-4d17-8ee4-ca2f21a613ea - 78056 - database_metadata - HANDLED_OUTPUT - Handled output "result" using IO manager "io_manager"
+2026-03-15 15:37:02 +0700 - dagster - DEBUG - __ASSET_JOB - 90ee3ee4-4afd-4d17-8ee4-ca2f21a613ea - 78049 - ENGINE_EVENT - Multiprocess executor: parent process exiting after 5.69s (pid: 78049)
+2026-03-15 15:37:02 +0700 - dagster - DEBUG - __ASSET_JOB - 90ee3ee4-4afd-4d17-8ee4-ca2f21a613ea - 78049 - RUN_SUCCESS - Finished execution of run for "__ASSET_JOB".
+[32m2026-03-15 15:37:16 +0700[0m - dagster.daemon.QueuedRunCoordinatorDaemon - [34mINFO[0m - Priority sorting and checking tag concurrency limits for queued runs.
+I0000 00:00:1773563837.177462 2574030 fork_posix.cc:71] Other threads are currently calling into gRPC, skipping fork() handlers
+[32m2026-03-15 15:37:21 +0700[0m - dagster.daemon.QueuedRunCoordinatorDaemon - [34mINFO[0m - Launched 1 runs.
+2026-03-15 15:37:21 +0700 - dagster - DEBUG - __ASSET_JOB - 575c2153-1dc0-4c38-8a25-9f1cd957630f - 78083 - RUN_START - Started execution of run for "__ASSET_JOB".
+2026-03-15 15:37:21 +0700 - dagster - DEBUG - __ASSET_JOB - 575c2153-1dc0-4c38-8a25-9f1cd957630f - 78083 - ENGINE_EVENT - Executing steps using multiprocess executor: parent process (pid: 78083)
+2026-03-15 15:37:21 +0700 - dagster - DEBUG - __ASSET_JOB - 575c2153-1dc0-4c38-8a25-9f1cd957630f - 78083 - db_health_check - STEP_WORKER_STARTING - Launching subprocess for "db_health_check".
+2026-03-15 15:37:24 +0700 - dagster - DEBUG - __ASSET_JOB - 575c2153-1dc0-4c38-8a25-9f1cd957630f - 78089 - db_health_check - STEP_WORKER_STARTED - Executing step "db_health_check" in subprocess.
+2026-03-15 15:37:24 +0700 - dagster - DEBUG - __ASSET_JOB - 575c2153-1dc0-4c38-8a25-9f1cd957630f - 78089 - db_health_check - RESOURCE_INIT_STARTED - Starting initialization of resources [io_manager].
+2026-03-15 15:37:24 +0700 - dagster - DEBUG - __ASSET_JOB - 575c2153-1dc0-4c38-8a25-9f1cd957630f - 78089 - db_health_check - RESOURCE_INIT_SUCCESS - Finished initialization of resources [io_manager].
+2026-03-15 15:37:24 +0700 - dagster - DEBUG - __ASSET_JOB - 575c2153-1dc0-4c38-8a25-9f1cd957630f - 78089 - LOGS_CAPTURED - Started capturing logs in process (pid: 78089).
+2026-03-15 15:37:24 +0700 - dagster - DEBUG - __ASSET_JOB - 575c2153-1dc0-4c38-8a25-9f1cd957630f - 78089 - db_health_check - STEP_START - Started execution of step "db_health_check".
+2026-03-15 15:37:25 +0700 - dagster - INFO - __ASSET_JOB - 575c2153-1dc0-4c38-8a25-9f1cd957630f - db_health_check - ✅ DB connection successful
+2026-03-15 15:37:25 +0700 - dagster - DEBUG - __ASSET_JOB - 575c2153-1dc0-4c38-8a25-9f1cd957630f - 78089 - db_health_check - STEP_OUTPUT - Yielded output "result" of type "Bool". (Type check passed).
+2026-03-15 15:37:25 +0700 - dagster - DEBUG - __ASSET_JOB - 575c2153-1dc0-4c38-8a25-9f1cd957630f - db_health_check - Writing file at: /Users/macpro_phichet/dev/ml-research/.dagster_home/storage/db_health_check using PickledObjectFilesystemIOManager...
+2026-03-15 15:37:25,932 - INFO - Context impl SQLiteImpl.
+2026-03-15 15:37:25,934 - INFO - Will assume non-transactional DDL.
+2026-03-15 15:37:26 +0700 - dagster - DEBUG - __ASSET_JOB - 575c2153-1dc0-4c38-8a25-9f1cd957630f - 78089 - db_health_check - ASSET_MATERIALIZATION - Materialized value db_health_check.
+2026-03-15 15:37:26 +0700 - dagster - DEBUG - __ASSET_JOB - 575c2153-1dc0-4c38-8a25-9f1cd957630f - 78089 - db_health_check - HANDLED_OUTPUT - Handled output "result" using IO manager "io_manager"
+2026-03-15 15:37:26 +0700 - dagster - DEBUG - __ASSET_JOB - 575c2153-1dc0-4c38-8a25-9f1cd957630f - 78089 - db_health_check - STEP_SUCCESS - Finished execution of step "db_health_check" in 1.37s.
+2026-03-15 15:37:26 +0700 - dagster - DEBUG - __ASSET_JOB - 575c2153-1dc0-4c38-8a25-9f1cd957630f - 78083 - ENGINE_EVENT - Multiprocess executor: parent process exiting after 5.02s (pid: 78083)
+2026-03-15 15:37:26 +0700 - dagster - DEBUG - __ASSET_JOB - 575c2153-1dc0-4c38-8a25-9f1cd957630f - 78083 - RUN_SUCCESS - Finished execution of run for "__ASSET_JOB".
+[32m2026-03-15 15:37:42 +0700[0m - dagster.daemon.QueuedRunCoordinatorDaemon - [34mINFO[0m - Priority sorting and checking tag concurrency limits for queued runs.
+I0000 00:00:1773563862.722467 2577961 fork_posix.cc:71] Other threads are currently calling into gRPC, skipping fork() handlers
+[32m2026-03-15 15:37:46 +0700[0m - dagster.daemon.QueuedRunCoordinatorDaemon - [34mINFO[0m - Launched 1 runs.
+2026-03-15 15:37:46 +0700 - dagster - DEBUG - __ASSET_JOB - 08d285ab-d640-488d-a980-f2a28feb9946 - 78113 - RUN_START - Started execution of run for "__ASSET_JOB".
+2026-03-15 15:37:46 +0700 - dagster - DEBUG - __ASSET_JOB - 08d285ab-d640-488d-a980-f2a28feb9946 - 78113 - ENGINE_EVENT - Executing steps using multiprocess executor: parent process (pid: 78113)
+2026-03-15 15:37:46 +0700 - dagster - DEBUG - __ASSET_JOB - 08d285ab-d640-488d-a980-f2a28feb9946 - 78113 - fsk_local_cache - STEP_WORKER_STARTING - Launching subprocess for "fsk_local_cache".
+2026-03-15 15:37:50 +0700 - dagster - DEBUG - __ASSET_JOB - 08d285ab-d640-488d-a980-f2a28feb9946 - 78117 - fsk_local_cache - STEP_WORKER_STARTED - Executing step "fsk_local_cache" in subprocess.
+2026-03-15 15:37:50 +0700 - dagster - DEBUG - __ASSET_JOB - 08d285ab-d640-488d-a980-f2a28feb9946 - 78117 - fsk_local_cache - RESOURCE_INIT_STARTED - Starting initialization of resources [io_manager].
+2026-03-15 15:37:50 +0700 - dagster - DEBUG - __ASSET_JOB - 08d285ab-d640-488d-a980-f2a28feb9946 - 78117 - fsk_local_cache - RESOURCE_INIT_SUCCESS - Finished initialization of resources [io_manager].
+2026-03-15 15:37:50 +0700 - dagster - DEBUG - __ASSET_JOB - 08d285ab-d640-488d-a980-f2a28feb9946 - 78117 - LOGS_CAPTURED - Started capturing logs in process (pid: 78117).
+2026-03-15 15:37:50 +0700 - dagster - DEBUG - __ASSET_JOB - 08d285ab-d640-488d-a980-f2a28feb9946 - 78117 - fsk_local_cache - STEP_START - Started execution of step "fsk_local_cache".
+2026-03-15 15:37:52,547 - INFO - Fetching data from PostgreSQL for table: fct_loan_features
+/Users/macpro_phichet/dev/ml-research/app/utils/duckdb_utils.py:21: UserWarning: pandas only supports SQLAlchemy connectable (engine/connection) or database string URI or sqlite3 DBAPI2 connection. Other DBAPI2 objects are not tested. Please consider using SQLAlchemy.
+  df = pd.read_sql(query, conn_pg)
+2026-03-15 15:37:52,868 - INFO - Synced 67 rows to DuckDB table: fct_loan_features
+2026-03-15 15:37:52 +0700 - dagster - INFO - __ASSET_JOB - 08d285ab-d640-488d-a980-f2a28feb9946 - fsk_local_cache - Successfully cached data to DuckDB
+2026-03-15 15:37:52 +0700 - dagster - DEBUG - __ASSET_JOB - 08d285ab-d640-488d-a980-f2a28feb9946 - 78117 - fsk_local_cache - STEP_OUTPUT - Yielded output "result" of type "Bool". (Type check passed).
+2026-03-15 15:37:52 +0700 - dagster - DEBUG - __ASSET_JOB - 08d285ab-d640-488d-a980-f2a28feb9946 - fsk_local_cache - Writing file at: /Users/macpro_phichet/dev/ml-research/.dagster_home/storage/fsk_local_cache using PickledObjectFilesystemIOManager...
+2026-03-15 15:37:52,928 - INFO - Context impl SQLiteImpl.
+2026-03-15 15:37:52,929 - INFO - Will assume non-transactional DDL.
+2026-03-15 15:37:53 +0700 - dagster - DEBUG - __ASSET_JOB - 08d285ab-d640-488d-a980-f2a28feb9946 - 78117 - fsk_local_cache - ASSET_MATERIALIZATION - Materialized value fsk_local_cache.
+2026-03-15 15:37:53 +0700 - dagster - DEBUG - __ASSET_JOB - 08d285ab-d640-488d-a980-f2a28feb9946 - 78117 - fsk_local_cache - HANDLED_OUTPUT - Handled output "result" using IO manager "io_manager"
+2026-03-15 15:37:53 +0700 - dagster - DEBUG - __ASSET_JOB - 08d285ab-d640-488d-a980-f2a28feb9946 - 78113 - ENGINE_EVENT - Multiprocess executor: parent process exiting after 6.77s (pid: 78113)
+2026-03-15 15:37:53 +0700 - dagster - DEBUG - __ASSET_JOB - 08d285ab-d640-488d-a980-f2a28feb9946 - 78113 - RUN_SUCCESS - Finished execution of run for "__ASSET_JOB".
+[32m2026-03-15 15:38:17 +0700[0m - dagster.daemon.QueuedRunCoordinatorDaemon - [34mINFO[0m - Priority sorting and checking tag concurrency limits for queued runs.
+I0000 00:00:1773563898.069384 2574030 fork_posix.cc:71] Other threads are currently calling into gRPC, skipping fork() handlers
+[32m2026-03-15 15:38:22 +0700[0m - dagster.daemon.QueuedRunCoordinatorDaemon - [34mINFO[0m - Launched 1 runs.
+2026-03-15 15:38:22 +0700 - dagster - DEBUG - __ASSET_JOB - b818027d-8ace-4b54-a2b3-d16f7092c4bf - 78159 - RUN_START - Started execution of run for "__ASSET_JOB".
+2026-03-15 15:38:22 +0700 - dagster - DEBUG - __ASSET_JOB - b818027d-8ace-4b54-a2b3-d16f7092c4bf - 78159 - ENGINE_EVENT - Executing steps using multiprocess executor: parent process (pid: 78159)
+2026-03-15 15:38:22 +0700 - dagster - DEBUG - __ASSET_JOB - b818027d-8ace-4b54-a2b3-d16f7092c4bf - 78159 - fsk_engineered_data - STEP_WORKER_STARTING - Launching subprocess for "fsk_engineered_data".
+2026-03-15 15:38:25 +0700 - dagster - DEBUG - __ASSET_JOB - b818027d-8ace-4b54-a2b3-d16f7092c4bf - 78165 - fsk_engineered_data - STEP_WORKER_STARTED - Executing step "fsk_engineered_data" in subprocess.
+2026-03-15 15:38:25 +0700 - dagster - DEBUG - __ASSET_JOB - b818027d-8ace-4b54-a2b3-d16f7092c4bf - 78165 - fsk_engineered_data - RESOURCE_INIT_STARTED - Starting initialization of resources [io_manager].
+2026-03-15 15:38:25 +0700 - dagster - DEBUG - __ASSET_JOB - b818027d-8ace-4b54-a2b3-d16f7092c4bf - 78165 - fsk_engineered_data - RESOURCE_INIT_SUCCESS - Finished initialization of resources [io_manager].
+2026-03-15 15:38:25 +0700 - dagster - DEBUG - __ASSET_JOB - b818027d-8ace-4b54-a2b3-d16f7092c4bf - 78165 - LOGS_CAPTURED - Started capturing logs in process (pid: 78165).
+2026-03-15 15:38:25 +0700 - dagster - DEBUG - __ASSET_JOB - b818027d-8ace-4b54-a2b3-d16f7092c4bf - 78165 - fsk_engineered_data - STEP_START - Started execution of step "fsk_engineered_data".
+2026-03-15 15:38:25 +0700 - dagster - DEBUG - __ASSET_JOB - b818027d-8ace-4b54-a2b3-d16f7092c4bf - fsk_engineered_data - Loading file from: /Users/macpro_phichet/dev/ml-research/.dagster_home/storage/fsk_local_cache using PickledObjectFilesystemIOManager...
+2026-03-15 15:38:25 +0700 - dagster - DEBUG - __ASSET_JOB - b818027d-8ace-4b54-a2b3-d16f7092c4bf - 78165 - fsk_engineered_data - LOADED_INPUT - Loaded input "fsk_local_cache" using input manager "io_manager"
+2026-03-15 15:38:25 +0700 - dagster - DEBUG - __ASSET_JOB - b818027d-8ace-4b54-a2b3-d16f7092c4bf - 78165 - fsk_engineered_data - STEP_INPUT - Got input "fsk_local_cache" of type "Bool". (Type check passed).
+2026-03-15 15:38:27 +0700 - dagster - INFO - __ASSET_JOB - b818027d-8ace-4b54-a2b3-d16f7092c4bf - fsk_engineered_data - Loaded 67 rows from DuckDB
+2026-03-15 15:38:27 +0700 - dagster - DEBUG - __ASSET_JOB - b818027d-8ace-4b54-a2b3-d16f7092c4bf - 78165 - fsk_engineered_data - STEP_OUTPUT - Yielded output "result" of type "Any". (Type check passed).
+2026-03-15 15:38:27 +0700 - dagster - DEBUG - __ASSET_JOB - b818027d-8ace-4b54-a2b3-d16f7092c4bf - fsk_engineered_data - Writing file at: /Users/macpro_phichet/dev/ml-research/.dagster_home/storage/fsk_engineered_data using PickledObjectFilesystemIOManager...
+2026-03-15 15:38:27 +0700 - dagster - DEBUG - __ASSET_JOB - b818027d-8ace-4b54-a2b3-d16f7092c4bf - 78165 - fsk_engineered_data - ASSET_MATERIALIZATION - Materialized value fsk_engineered_data.
+2026-03-15 15:38:27 +0700 - dagster - DEBUG - __ASSET_JOB - b818027d-8ace-4b54-a2b3-d16f7092c4bf - 78165 - fsk_engineered_data - HANDLED_OUTPUT - Handled output "result" using IO manager "io_manager"
+2026-03-15 15:38:27 +0700 - dagster - DEBUG - __ASSET_JOB - b818027d-8ace-4b54-a2b3-d16f7092c4bf - 78159 - ENGINE_EVENT - Multiprocess executor: parent process exiting after 5.48s (pid: 78159)
+2026-03-15 15:38:27 +0700 - dagster - DEBUG - __ASSET_JOB - b818027d-8ace-4b54-a2b3-d16f7092c4bf - 78159 - RUN_SUCCESS - Finished execution of run for "__ASSET_JOB".
+[32m2026-03-15 15:38:43 +0700[0m - dagster.daemon.QueuedRunCoordinatorDaemon - [34mINFO[0m - Priority sorting and checking tag concurrency limits for queued runs.
+I0000 00:00:1773563923.616065 2574030 fork_posix.cc:71] Other threads are currently calling into gRPC, skipping fork() handlers
+[32m2026-03-15 15:38:47 +0700[0m - dagster.daemon.QueuedRunCoordinatorDaemon - [34mINFO[0m - Launched 1 runs.
+2026-03-15 15:38:47 +0700 - dagster - DEBUG - __ASSET_JOB - 45288501-ea58-466e-9506-2863fbc54550 - 78189 - RUN_START - Started execution of run for "__ASSET_JOB".
+2026-03-15 15:38:47 +0700 - dagster - DEBUG - __ASSET_JOB - 45288501-ea58-466e-9506-2863fbc54550 - 78189 - ENGINE_EVENT - Executing steps using multiprocess executor: parent process (pid: 78189)
+2026-03-15 15:38:47 +0700 - dagster - DEBUG - __ASSET_JOB - 45288501-ea58-466e-9506-2863fbc54550 - 78189 - fsk_local_cache - STEP_WORKER_STARTING - Launching subprocess for "fsk_local_cache".
+2026-03-15 15:38:50 +0700 - dagster - DEBUG - __ASSET_JOB - 45288501-ea58-466e-9506-2863fbc54550 - 78195 - fsk_local_cache - STEP_WORKER_STARTED - Executing step "fsk_local_cache" in subprocess.
+2026-03-15 15:38:50 +0700 - dagster - DEBUG - __ASSET_JOB - 45288501-ea58-466e-9506-2863fbc54550 - 78195 - fsk_local_cache - RESOURCE_INIT_STARTED - Starting initialization of resources [io_manager].
+2026-03-15 15:38:50 +0700 - dagster - DEBUG - __ASSET_JOB - 45288501-ea58-466e-9506-2863fbc54550 - 78195 - fsk_local_cache - RESOURCE_INIT_SUCCESS - Finished initialization of resources [io_manager].
+2026-03-15 15:38:50 +0700 - dagster - DEBUG - __ASSET_JOB - 45288501-ea58-466e-9506-2863fbc54550 - 78195 - LOGS_CAPTURED - Started capturing logs in process (pid: 78195).
+2026-03-15 15:38:50 +0700 - dagster - DEBUG - __ASSET_JOB - 45288501-ea58-466e-9506-2863fbc54550 - 78195 - fsk_local_cache - STEP_START - Started execution of step "fsk_local_cache".
+2026-03-15 15:38:52,205 - INFO - Fetching data from PostgreSQL for table: fct_loan_features
+/Users/macpro_phichet/dev/ml-research/app/utils/duckdb_utils.py:21: UserWarning: pandas only supports SQLAlchemy connectable (engine/connection) or database string URI or sqlite3 DBAPI2 connection. Other DBAPI2 objects are not tested. Please consider using SQLAlchemy.
+  df = pd.read_sql(query, conn_pg)
+2026-03-15 15:38:52,433 - INFO - Synced 67 rows to DuckDB table: fct_loan_features
+2026-03-15 15:38:52 +0700 - dagster - INFO - __ASSET_JOB - 45288501-ea58-466e-9506-2863fbc54550 - fsk_local_cache - Successfully cached data to DuckDB
+2026-03-15 15:38:52 +0700 - dagster - DEBUG - __ASSET_JOB - 45288501-ea58-466e-9506-2863fbc54550 - 78195 - fsk_local_cache - STEP_OUTPUT - Yielded output "result" of type "Bool". (Type check passed).
+2026-03-15 15:38:52 +0700 - dagster - DEBUG - __ASSET_JOB - 45288501-ea58-466e-9506-2863fbc54550 - fsk_local_cache - Writing file at: /Users/macpro_phichet/dev/ml-research/.dagster_home/storage/fsk_local_cache using PickledObjectFilesystemIOManager...
+2026-03-15 15:38:52,494 - INFO - Context impl SQLiteImpl.
+2026-03-15 15:38:52,494 - INFO - Will assume non-transactional DDL.
+2026-03-15 15:38:52 +0700 - dagster - DEBUG - __ASSET_JOB - 45288501-ea58-466e-9506-2863fbc54550 - 78195 - fsk_local_cache - ASSET_MATERIALIZATION - Materialized value fsk_local_cache.
+2026-03-15 15:38:52 +0700 - dagster - DEBUG - __ASSET_JOB - 45288501-ea58-466e-9506-2863fbc54550 - 78195 - fsk_local_cache - HANDLED_OUTPUT - Handled output "result" using IO manager "io_manager"
+2026-03-15 15:38:52 +0700 - dagster - DEBUG - __ASSET_JOB - 45288501-ea58-466e-9506-2863fbc54550 - 78195 - fsk_local_cache - STEP_SUCCESS - Finished execution of step "fsk_local_cache" in 2.16s.
+2026-03-15 15:38:52 +0700 - dagster - DEBUG - __ASSET_JOB - 45288501-ea58-466e-9506-2863fbc54550 - 78189 - ENGINE_EVENT - Multiprocess executor: parent process exiting after 5.6s (pid: 78189)
+2026-03-15 15:38:53 +0700 - dagster - DEBUG - __ASSET_JOB - 45288501-ea58-466e-9506-2863fbc54550 - 78189 - RUN_SUCCESS - Finished execution of run for "__ASSET_JOB".
+[32m2026-03-15 15:39:08 +0700[0m - dagster.daemon.QueuedRunCoordinatorDaemon - [34mINFO[0m - Priority sorting and checking tag concurrency limits for queued runs.
+I0000 00:00:1773563949.340278 2574030 fork_posix.cc:71] Other threads are currently calling into gRPC, skipping fork() handlers
+[32m2026-03-15 15:39:13 +0700[0m - dagster.daemon.QueuedRunCoordinatorDaemon - [34mINFO[0m - Launched 1 runs.
+2026-03-15 15:39:13 +0700 - dagster - DEBUG - __ASSET_JOB - b3971603-dfe6-4277-a7bc-16390022dd83 - 78219 - RUN_START - Started execution of run for "__ASSET_JOB".
+2026-03-15 15:39:13 +0700 - dagster - DEBUG - __ASSET_JOB - b3971603-dfe6-4277-a7bc-16390022dd83 - 78219 - ENGINE_EVENT - Executing steps using multiprocess executor: parent process (pid: 78219)
+2026-03-15 15:39:13 +0700 - dagster - DEBUG - __ASSET_JOB - b3971603-dfe6-4277-a7bc-16390022dd83 - 78219 - fsk_engineered_data - STEP_WORKER_STARTING - Launching subprocess for "fsk_engineered_data".
+2026-03-15 15:39:16 +0700 - dagster - DEBUG - __ASSET_JOB - b3971603-dfe6-4277-a7bc-16390022dd83 - 78225 - fsk_engineered_data - STEP_WORKER_STARTED - Executing step "fsk_engineered_data" in subprocess.
+2026-03-15 15:39:16 +0700 - dagster - DEBUG - __ASSET_JOB - b3971603-dfe6-4277-a7bc-16390022dd83 - 78225 - fsk_engineered_data - RESOURCE_INIT_STARTED - Starting initialization of resources [io_manager].
+2026-03-15 15:39:16 +0700 - dagster - DEBUG - __ASSET_JOB - b3971603-dfe6-4277-a7bc-16390022dd83 - 78225 - fsk_engineered_data - RESOURCE_INIT_SUCCESS - Finished initialization of resources [io_manager].
+2026-03-15 15:39:16 +0700 - dagster - DEBUG - __ASSET_JOB - b3971603-dfe6-4277-a7bc-16390022dd83 - 78225 - LOGS_CAPTURED - Started capturing logs in process (pid: 78225).
+2026-03-15 15:39:17 +0700 - dagster - DEBUG - __ASSET_JOB - b3971603-dfe6-4277-a7bc-16390022dd83 - 78225 - fsk_engineered_data - STEP_START - Started execution of step "fsk_engineered_data".
+2026-03-15 15:39:17 +0700 - dagster - DEBUG - __ASSET_JOB - b3971603-dfe6-4277-a7bc-16390022dd83 - fsk_engineered_data - Loading file from: /Users/macpro_phichet/dev/ml-research/.dagster_home/storage/fsk_local_cache using PickledObjectFilesystemIOManager...
+2026-03-15 15:39:17 +0700 - dagster - DEBUG - __ASSET_JOB - b3971603-dfe6-4277-a7bc-16390022dd83 - 78225 - fsk_engineered_data - LOADED_INPUT - Loaded input "fsk_local_cache" using input manager "io_manager"
+2026-03-15 15:39:17 +0700 - dagster - DEBUG - __ASSET_JOB - b3971603-dfe6-4277-a7bc-16390022dd83 - 78225 - fsk_engineered_data - STEP_INPUT - Got input "fsk_local_cache" of type "Bool". (Type check passed).
+2026-03-15 15:39:18 +0700 - dagster - INFO - __ASSET_JOB - b3971603-dfe6-4277-a7bc-16390022dd83 - fsk_engineered_data - Loaded 67 rows from DuckDB
+2026-03-15 15:39:18 +0700 - dagster - DEBUG - __ASSET_JOB - b3971603-dfe6-4277-a7bc-16390022dd83 - 78225 - fsk_engineered_data - STEP_OUTPUT - Yielded output "result" of type "Any". (Type check passed).
+2026-03-15 15:39:18 +0700 - dagster - DEBUG - __ASSET_JOB - b3971603-dfe6-4277-a7bc-16390022dd83 - fsk_engineered_data - Writing file at: /Users/macpro_phichet/dev/ml-research/.dagster_home/storage/fsk_engineered_data using PickledObjectFilesystemIOManager...
+2026-03-15 15:39:18 +0700 - dagster - DEBUG - __ASSET_JOB - b3971603-dfe6-4277-a7bc-16390022dd83 - 78225 - fsk_engineered_data - ASSET_MATERIALIZATION - Materialized value fsk_engineered_data.
+2026-03-15 15:39:18 +0700 - dagster - DEBUG - __ASSET_JOB - b3971603-dfe6-4277-a7bc-16390022dd83 - 78225 - fsk_engineered_data - HANDLED_OUTPUT - Handled output "result" using IO manager "io_manager"
+2026-03-15 15:39:18 +0700 - dagster - DEBUG - __ASSET_JOB - b3971603-dfe6-4277-a7bc-16390022dd83 - 78225 - fsk_engineered_data - STEP_SUCCESS - Finished execution of step "fsk_engineered_data" in 1.78s.
+2026-03-15 15:39:19 +0700 - dagster - DEBUG - __ASSET_JOB - b3971603-dfe6-4277-a7bc-16390022dd83 - 78219 - ENGINE_EVENT - Multiprocess executor: parent process exiting after 5.63s (pid: 78219)
+2026-03-15 15:39:19 +0700 - dagster - DEBUG - __ASSET_JOB - b3971603-dfe6-4277-a7bc-16390022dd83 - 78219 - RUN_SUCCESS - Finished execution of run for "__ASSET_JOB".
+[32m2026-03-15 15:39:49 +0700[0m - dagster.daemon.QueuedRunCoordinatorDaemon - [34mINFO[0m - Priority sorting and checking tag concurrency limits for queued runs.
+I0000 00:00:1773563989.925481 2574030 fork_posix.cc:71] Other threads are currently calling into gRPC, skipping fork() handlers
+[32m2026-03-15 15:39:53 +0700[0m - dagster.daemon.QueuedRunCoordinatorDaemon - [34mINFO[0m - Launched 1 runs.
+2026-03-15 15:39:53 +0700 - dagster - DEBUG - __ASSET_JOB - cd4fc2ac-7e5e-48ba-bdf1-77f8d0b319f8 - 78271 - RUN_START - Started execution of run for "__ASSET_JOB".
+2026-03-15 15:39:53 +0700 - dagster - DEBUG - __ASSET_JOB - cd4fc2ac-7e5e-48ba-bdf1-77f8d0b319f8 - 78271 - ENGINE_EVENT - Executing steps using multiprocess executor: parent process (pid: 78271)
+2026-03-15 15:39:53 +0700 - dagster - DEBUG - __ASSET_JOB - cd4fc2ac-7e5e-48ba-bdf1-77f8d0b319f8 - 78271 - preprocessed_features - STEP_WORKER_STARTING - Launching subprocess for "preprocessed_features".
+2026-03-15 15:39:57 +0700 - dagster - DEBUG - __ASSET_JOB - cd4fc2ac-7e5e-48ba-bdf1-77f8d0b319f8 - 78277 - preprocessed_features - STEP_WORKER_STARTED - Executing step "preprocessed_features" in subprocess.
+2026-03-15 15:39:57 +0700 - dagster - DEBUG - __ASSET_JOB - cd4fc2ac-7e5e-48ba-bdf1-77f8d0b319f8 - 78277 - preprocessed_features - RESOURCE_INIT_STARTED - Starting initialization of resources [io_manager].
+2026-03-15 15:39:57 +0700 - dagster - DEBUG - __ASSET_JOB - cd4fc2ac-7e5e-48ba-bdf1-77f8d0b319f8 - 78277 - preprocessed_features - RESOURCE_INIT_SUCCESS - Finished initialization of resources [io_manager].
+2026-03-15 15:39:57 +0700 - dagster - DEBUG - __ASSET_JOB - cd4fc2ac-7e5e-48ba-bdf1-77f8d0b319f8 - 78277 - LOGS_CAPTURED - Started capturing logs in process (pid: 78277).
+2026-03-15 15:39:57 +0700 - dagster - DEBUG - __ASSET_JOB - cd4fc2ac-7e5e-48ba-bdf1-77f8d0b319f8 - 78277 - preprocessed_features - STEP_START - Started execution of step "preprocessed_features".
+2026-03-15 15:39:57 +0700 - dagster - DEBUG - __ASSET_JOB - cd4fc2ac-7e5e-48ba-bdf1-77f8d0b319f8 - preprocessed_features - Loading file from: /Users/macpro_phichet/dev/ml-research/.dagster_home/storage/fsk_engineered_data using PickledObjectFilesystemIOManager...
+2026-03-15 15:39:59 +0700 - dagster - DEBUG - __ASSET_JOB - cd4fc2ac-7e5e-48ba-bdf1-77f8d0b319f8 - 78277 - preprocessed_features - LOADED_INPUT - Loaded input "fsk_engineered_data" using input manager "io_manager"
+2026-03-15 15:39:59 +0700 - dagster - DEBUG - __ASSET_JOB - cd4fc2ac-7e5e-48ba-bdf1-77f8d0b319f8 - 78277 - preprocessed_features - STEP_INPUT - Got input "fsk_engineered_data" of type "Any". (Type check passed).
+/Users/macpro_phichet/dev/ml-research/venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+It appears no Pandas index type was detected (ignore this warning if you're using DASK for now.) Please check whether the dataframe created matches what what you expect to happen.
+2026-03-15 15:40:05 +0700 - dagster - INFO - __ASSET_JOB - cd4fc2ac-7e5e-48ba-bdf1-77f8d0b319f8 - preprocessed_features - Dropping non-feature columns: ['user_id']
+2026-03-15 15:40:05 +0700 - dagster - INFO - __ASSET_JOB - cd4fc2ac-7e5e-48ba-bdf1-77f8d0b319f8 - preprocessed_features - Preprocessing complete. Columns: 16
+2026-03-15 15:40:05 +0700 - dagster - DEBUG - __ASSET_JOB - cd4fc2ac-7e5e-48ba-bdf1-77f8d0b319f8 - 78277 - preprocessed_features - STEP_OUTPUT - Yielded output "result" of type "Any". (Type check passed).
+2026-03-15 15:40:05 +0700 - dagster - DEBUG - __ASSET_JOB - cd4fc2ac-7e5e-48ba-bdf1-77f8d0b319f8 - preprocessed_features - Writing file at: /Users/macpro_phichet/dev/ml-research/.dagster_home/storage/preprocessed_features using PickledObjectFilesystemIOManager...
+2026-03-15 15:40:05 +0700 - dagster - DEBUG - __ASSET_JOB - cd4fc2ac-7e5e-48ba-bdf1-77f8d0b319f8 - 78277 - preprocessed_features - ASSET_MATERIALIZATION - Materialized value preprocessed_features.
+2026-03-15 15:40:05 +0700 - dagster - DEBUG - __ASSET_JOB - cd4fc2ac-7e5e-48ba-bdf1-77f8d0b319f8 - 78277 - preprocessed_features - HANDLED_OUTPUT - Handled output "result" using IO manager "io_manager"
+2026-03-15 15:40:05 +0700 - dagster - DEBUG - __ASSET_JOB - cd4fc2ac-7e5e-48ba-bdf1-77f8d0b319f8 - 78277 - preprocessed_features - STEP_SUCCESS - Finished execution of step "preprocessed_features" in 8.25s.
+2026-03-15 15:40:06 +0700 - dagster - DEBUG - __ASSET_JOB - cd4fc2ac-7e5e-48ba-bdf1-77f8d0b319f8 - 78271 - ENGINE_EVENT - Multiprocess executor: parent process exiting after 12.83s (pid: 78271)
+2026-03-15 15:40:06 +0700 - dagster - DEBUG - __ASSET_JOB - cd4fc2ac-7e5e-48ba-bdf1-77f8d0b319f8 - 78271 - RUN_SUCCESS - Finished execution of run for "__ASSET_JOB".
+[32m2026-03-15 15:40:19 +0700[0m - dagster.daemon.QueuedRunCoordinatorDaemon - [34mINFO[0m - Priority sorting and checking tag concurrency limits for queued runs.
+I0000 00:00:1773564020.242440 2574030 fork_posix.cc:71] Other threads are currently calling into gRPC, skipping fork() handlers
+[32m2026-03-15 15:40:23 +0700[0m - dagster.daemon.QueuedRunCoordinatorDaemon - [34mINFO[0m - Launched 1 runs.
+2026-03-15 15:40:24 +0700 - dagster - DEBUG - __ASSET_JOB - 3cb5677c-3eee-44db-b708-a3668254520e - 78309 - RUN_START - Started execution of run for "__ASSET_JOB".
+2026-03-15 15:40:24 +0700 - dagster - DEBUG - __ASSET_JOB - 3cb5677c-3eee-44db-b708-a3668254520e - 78309 - ENGINE_EVENT - Executing steps using multiprocess executor: parent process (pid: 78309)
+2026-03-15 15:40:24 +0700 - dagster - DEBUG - __ASSET_JOB - 3cb5677c-3eee-44db-b708-a3668254520e - 78309 - lucis_model - STEP_WORKER_STARTING - Launching subprocess for "lucis_model".
+2026-03-15 15:40:27 +0700 - dagster - DEBUG - __ASSET_JOB - 3cb5677c-3eee-44db-b708-a3668254520e - 78311 - lucis_model - STEP_WORKER_STARTED - Executing step "lucis_model" in subprocess.
+2026-03-15 15:40:27 +0700 - dagster - DEBUG - __ASSET_JOB - 3cb5677c-3eee-44db-b708-a3668254520e - 78311 - lucis_model - RESOURCE_INIT_STARTED - Starting initialization of resources [io_manager].
+2026-03-15 15:40:27 +0700 - dagster - DEBUG - __ASSET_JOB - 3cb5677c-3eee-44db-b708-a3668254520e - 78311 - lucis_model - RESOURCE_INIT_SUCCESS - Finished initialization of resources [io_manager].
+2026-03-15 15:40:27 +0700 - dagster - DEBUG - __ASSET_JOB - 3cb5677c-3eee-44db-b708-a3668254520e - 78311 - LOGS_CAPTURED - Started capturing logs in process (pid: 78311).
+2026-03-15 15:40:27 +0700 - dagster - DEBUG - __ASSET_JOB - 3cb5677c-3eee-44db-b708-a3668254520e - 78311 - lucis_model - STEP_START - Started execution of step "lucis_model".
+2026-03-15 15:40:27 +0700 - dagster - DEBUG - __ASSET_JOB - 3cb5677c-3eee-44db-b708-a3668254520e - lucis_model - Loading file from: /Users/macpro_phichet/dev/ml-research/.dagster_home/storage/preprocessed_features using PickledObjectFilesystemIOManager...
+2026-03-15 15:40:30 +0700 - dagster - DEBUG - __ASSET_JOB - 3cb5677c-3eee-44db-b708-a3668254520e - 78311 - lucis_model - LOADED_INPUT - Loaded input "preprocessed_features" using input manager "io_manager"
+2026-03-15 15:40:30 +0700 - dagster - DEBUG - __ASSET_JOB - 3cb5677c-3eee-44db-b708-a3668254520e - 78311 - lucis_model - STEP_INPUT - Got input "preprocessed_features" of type "dict". (Type check passed).
+2026-03-15 15:40:33,191 - INFO - Detected pandas and successfully loaded Hamilton extensions.
+2026-03-15 15:40:33,768 - INFO - Detected dask and successfully loaded Hamilton extensions.
+/Users/macpro_phichet/dev/ml-research/venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+2026-03-15 15:40:35,031 - INFO - Cannot import pandera from pandera_validators. Run pip install sf-hamilton[pandera] if needed.
+2026-03-15 15:40:35 +0700 - dagster - INFO - __ASSET_JOB - 3cb5677c-3eee-44db-b708-a3668254520e - lucis_model - Data shape: (67, 16), columns: ['ust', 'spending_score_avg', 'saving_score_avg', 'planning_score_avg', 'loan_score_avg', 'worship_score_avg', 'extravagance_score_avg', 'vigilance_score_avg', 'loan_to_saving_ratio', 'worship_to_vigilance_ratio', 'extravagance_to_spending_ratio', 'worship_to_payoff_ratio', 'loan_extravagance_interaction', 'payoff_planning_interaction', 'spending_vigilance_interaction', 'worship_extravagance_interaction']
+2026-03-15 15:40:35 +0700 - dagster - INFO - __ASSET_JOB - 3cb5677c-3eee-44db-b708-a3668254520e - lucis_model - Computing correlations and selecting features...
+2026-03-15 15:40:35,244 - INFO - Selected 15 features: ['vigilance_score_avg', 'spending_vigilance_interaction', 'payoff_planning_interaction', 'saving_score_avg', 'spending_score_avg', 'planning_score_avg', 'loan_extravagance_interaction', 'extravagance_score_avg', 'worship_score_avg', 'worship_extravagance_interaction', 'loan_to_saving_ratio', 'loan_score_avg', 'worship_to_vigilance_ratio', 'worship_to_payoff_ratio', 'extravagance_to_spending_ratio']
+2026-03-15 15:40:35 +0700 - dagster - INFO - __ASSET_JOB - 3cb5677c-3eee-44db-b708-a3668254520e - lucis_model - Training model with 15 features: ['vigilance_score_avg', 'spending_vigilance_interaction', 'payoff_planning_interaction', 'saving_score_avg', 'spending_score_avg', 'planning_score_avg', 'loan_extravagance_interaction', 'extravagance_score_avg', 'worship_score_avg', 'worship_extravagance_interaction', 'loan_to_saving_ratio', 'loan_score_avg', 'worship_to_vigilance_ratio', 'worship_to_payoff_ratio', 'extravagance_to_spending_ratio']
+2026-03-15 15:40:35,261 - INFO - Class balance for 'ust':
+2026-03-15 15:40:35,262 - INFO - Class 0: 40 samples (59.70%)
+2026-03-15 15:40:35,262 - INFO - Class 1: 27 samples (40.30%)
+2026-03-15 15:40:35,273 - INFO - Note: Hamilton collects completely anonymous data about usage. This will help us improve Hamilton over time. See https://hamilton.apache.org/get-started/license/#usage-analytics-data-privacy for details.
+/Users/macpro_phichet/dev/ml-research/venv/lib/python3.9/site-packages/sklearn/base.py:474: FutureWarning: `BaseEstimator._validate_data` is deprecated in 1.6 and will be removed in 1.7. Use `sklearn.utils.validation.validate_data` instead. This function becomes public and is part of the scikit-learn developer API.
+  warnings.warn(
+2026-03-15 15:40:35,318 - INFO - Hamilton: Oversampling complete. Shape: (64, 15)
+2026-03-15 15:40:35,318 - WARNING - It appears no Pandas index type was detected (ignore this warning if you're using DASK for now.) Please check whether the dataframe created matches what what you expect to happen.
+2026-03-15 15:40:35,328 - INFO - Applied Oversampling via Hamilton: Resampled data shape: (64, 15)
+2026-03-15 15:40:35,329 - INFO - Class balance for 'ust':
+2026-03-15 15:40:35,329 - INFO - Class 0: 32 samples (50.00%)
+2026-03-15 15:40:35,329 - INFO - Class 1: 32 samples (50.00%)
+2026-03-15 15:41:09,848 - INFO - Best parameters: {'class_weight': {0: 1, 1: 1}, 'max_depth': 3, 'min_samples_split': 5, 'n_estimators': 50}
+2026-03-15 15:41:09,948 - INFO - SelectFromModel selected 7 features: ['spending_vigilance_interaction', 'worship_score_avg', 'worship_extravagance_interaction', 'loan_to_saving_ratio', 'worship_to_vigilance_ratio', 'worship_to_payoff_ratio', 'extravagance_to_spending_ratio']
+2026-03-15 15:41:09,948 - INFO - Handling multicollinearity using Hamilton DAG for 7 features.
+/Users/macpro_phichet/dev/ml-research/venv/lib/python3.9/site-packages/sklearn/base.py:474: FutureWarning: `BaseEstimator._validate_data` is deprecated in 1.6 and will be removed in 1.7. Use `sklearn.utils.validation.validate_data` instead. This function becomes public and is part of the scikit-learn developer API.
+  warnings.warn(
+2026-03-15 15:41:09,967 - INFO - Hamilton: Oversampling complete. Shape: (64, 7)
+2026-03-15 15:41:10,087 - INFO - Hamilton: Removed worship_score_avg due to high VIF.
+2026-03-15 15:41:10,092 - INFO - Hamilton: Removed worship_extravagance_interaction due to high VIF.
+2026-03-15 15:41:10,096 - WARNING - It appears no Pandas index type was detected (ignore this warning if you're using DASK for now.) Please check whether the dataframe created matches what what you expect to happen.
+2026-03-15 15:41:10,106 - INFO - Final features after multicollinearity handling: ['spending_vigilance_interaction', 'loan_to_saving_ratio', 'worship_to_vigilance_ratio', 'worship_to_payoff_ratio', 'extravagance_to_spending_ratio']
+2026-03-15 15:41:10,106 - INFO - Removed features: ['worship_score_avg', 'worship_extravagance_interaction']
+2026-03-15 15:41:10,122 - INFO - VIF values:
+                          feature       VIF
+0  spending_vigilance_interaction  1.933360
+1            loan_to_saving_ratio  1.170948
+2      worship_to_vigilance_ratio  4.376997
+3         worship_to_payoff_ratio  3.491266
+4  extravagance_to_spending_ratio  1.457761
+2026-03-15 15:41:10,122 - INFO - All final features have VIF <= 1.5
+2026-03-15 15:41:11,147 - WARNING - High variance in CV scores (std: 0.137).
+2026-03-15 15:41:15,376 - INFO - Feature Importance:
+                          feature  importance
+2      worship_to_vigilance_ratio    0.308495
+1            loan_to_saving_ratio    0.252873
+4  extravagance_to_spending_ratio    0.201121
+3         worship_to_payoff_ratio    0.133615
+0  spending_vigilance_interaction    0.103896
+2026-03-15 15:41:15,376 - INFO - Final Model Metrics: {'cross_validated_accuracy': 0.59375, 'cross_validated_precision': 0.6153846153846154, 'cross_validated_recall': 0.5, 'cross_validated_f1': 0.5517241379310345, 'cross_validated_roc_auc': 0.6669921875, 'cross_validated_pr_auc': 0.7467449840958513, 'cv_scores': [0.6666666666666666, 0.3333333333333333, 0.42857142857142855, 0.42857142857142855, 0.6666666666666666], 'cv_score_mean': 0.5047619047619047, 'cv_score_std': 0.13669238185149832, 'test_accuracy': 0.5714285714285714, 'test_precision': 0.5, 'test_recall': 0.5, 'test_f1': 0.5, 'test_roc_auc': 0.6041666666666667, 'test_pr_auc': 0.7055069930069929, 'confusion_matrix': [[5, 3], [3, 3]], 'accuracy_ci_lower': 0.31220370689750276, 'accuracy_ci_upper': 0.83065343595964, 'precision_ci_lower': 0.10527777777777779, 'precision_ci_upper': 1.0, 'recall_ci_lower': 0.13348214285714288, 'recall_ci_upper': 0.8571428571428571, 'f1_ci_lower': 0.15993589743589745, 'f1_ci_upper': 0.789444444444444, 'roc_auc_ci_lower': 0.23726495726495728, 'roc_auc_ci_upper': 0.9166666666666667, 'pr_auc_ci_lower': 0.386978835978836, 'pr_auc_ci_upper': 0.9476573426573425, 'best_features': ['spending_vigilance_interaction', 'loan_to_saving_ratio', 'worship_to_vigilance_ratio', 'worship_to_payoff_ratio', 'extravagance_to_spending_ratio'], 'feature_importance': {'feature': {2: 'worship_to_vigilance_ratio', 1: 'loan_to_saving_ratio', 4: 'extravagance_to_spending_ratio', 3: 'worship_to_payoff_ratio', 0: 'spending_vigilance_interaction'}, 'importance': {2: 0.3084945899672357, 1: 0.2528734781607752, 4: 0.2011209980206611, 3: 0.13361484805454718, 0: 0.10389608579678082}}, 'model_params': {'bootstrap': True, 'ccp_alpha': 0.0, 'class_weight': {0: 1, 1: 1}, 'criterion': 'gini', 'max_depth': 3, 'max_features': 'sqrt', 'max_leaf_nodes': None, 'max_samples': None, 'min_impurity_decrease': 0.0, 'min_samples_leaf': 1, 'min_samples_split': 5, 'min_weight_fraction_leaf': 0.0, 'monotonic_cst': None, 'n_estimators': 50, 'n_jobs': None, 'oob_score': False, 'random_state': 42, 'verbose': 0, 'warm_start': False}, 'oversampling_method': 'borderline', 'n_features_selected': 5, 'vif_values': {'feature': {0: 'spending_vigilance_interaction', 1: 'loan_to_saving_ratio', 2: 'worship_to_vigilance_ratio', 3: 'worship_to_payoff_ratio', 4: 'extravagance_to_spending_ratio'}, 'VIF': {0: 1.933360137314613, 1: 1.170948174754426, 2: 4.376996855575744, 3: 3.4912660138883482, 4: 1.4577606013645108}}, 'removed_features': ['worship_score_avg', 'worship_extravagance_interaction'], 'added_features': [], 'decision_threshold': 0.5}
+2026-03-15 15:41:15,377 - INFO - Created directory: artifacts/scalers
+2026-03-15 15:41:15,377 - INFO - Created directory: artifacts/models
+2026-03-15 15:41:15,377 - INFO - Created directory: outputs/data
+2026-03-15 15:41:15,392 - INFO - Feature Importance:
+                          feature  importance
+2      worship_to_vigilance_ratio    0.308495
+1            loan_to_saving_ratio    0.252873
+4  extravagance_to_spending_ratio    0.201121
+3         worship_to_payoff_ratio    0.133615
+0  spending_vigilance_interaction    0.103896
+2026-03-15 15:41:15 +0700 - dagster - INFO - __ASSET_JOB - 3cb5677c-3eee-44db-b708-a3668254520e - lucis_model - Logging to MLflow...
+2026-03-15 15:41:15,431 - INFO - MLflow initialized with experiment: Atto_Fintech_Loan_Approval
+2026/03/15 15:41:15 WARNING mlflow.models.model: `artifact_path` is deprecated. Please use `name` instead.
+[31m2026/03/15 15:41:24 WARNING mlflow.models.model: Model logged without a signature and input example. Please set `input_example` parameter when logging the model to auto infer the model signature.[0m
+Registered model 'loan_approval_model' already exists. Creating a new version of this model...
+Created version '2' of model 'loan_approval_model'.
+2026-03-15 15:41:25,049 - INFO - Successfully logged run to MLflow. Run ID: d175951969014136b21ebefbd8ebdf4d
+2026-03-15 15:41:25 +0700 - dagster - INFO - __ASSET_JOB - 3cb5677c-3eee-44db-b708-a3668254520e - lucis_model - Model trained and logged to MLflow. Run ID: d175951969014136b21ebefbd8ebdf4d
+2026-03-15 15:41:25,067 - INFO - Saved scaler to artifacts/scalers/custom_scaler_20260315_154035.pkl with checksum: 0af71200ea53d1774c8fa175c01ebcefc9b780042a9de15d118853230063757d
+2026-03-15 15:41:25,097 - INFO - Saved model to artifacts/models/custom_model_20260315_154035.pkl with checksum: 83d789a58d2c7ff2b960e25db12e9230327a8299e79f7e6e32aa2d707ce04908
+2026-03-15 15:41:25,111 - INFO - Saved metadata CSV to outputs/data/metadata_20260315_154035.csv with checksum: cb9961292908ed6ea86df4fd0e0b5332d50b6a202103a7cf0f2a57661db99ddb
+2026-03-15 15:41:25 +0700 - dagster - DEBUG - __ASSET_JOB - 3cb5677c-3eee-44db-b708-a3668254520e - 78311 - lucis_model - STEP_OUTPUT - Yielded output "result" of type "Any". (Type check passed).
+2026-03-15 15:41:25 +0700 - dagster - DEBUG - __ASSET_JOB - 3cb5677c-3eee-44db-b708-a3668254520e - lucis_model - Writing file at: /Users/macpro_phichet/dev/ml-research/.dagster_home/storage/lucis_model using PickledObjectFilesystemIOManager...
+2026-03-15 15:41:25 +0700 - dagster - DEBUG - __ASSET_JOB - 3cb5677c-3eee-44db-b708-a3668254520e - 78311 - lucis_model - ASSET_MATERIALIZATION - Materialized value lucis_model.
+2026-03-15 15:41:25 +0700 - dagster - DEBUG - __ASSET_JOB - 3cb5677c-3eee-44db-b708-a3668254520e - 78311 - lucis_model - HANDLED_OUTPUT - Handled output "result" using IO manager "io_manager"
+2026-03-15 15:41:25 +0700 - dagster - DEBUG - __ASSET_JOB - 3cb5677c-3eee-44db-b708-a3668254520e - 78311 - lucis_model - STEP_SUCCESS - Finished execution of step "lucis_model" in 57.72s.

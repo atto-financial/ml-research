@@ -11,9 +11,8 @@ def raw_data(df: pd.DataFrame) -> pd.DataFrame:
 def numeric_cols(raw_data: pd.DataFrame) -> List[str]:
     """Identify numeric columns, excluding target."""
     exclude_cols = ['ust', 'user_id']
-    return [col for col in raw_data.columns 
-            if col not in exclude_cols 
-            and raw_data[col].dtype in [np.float64, np.int64]]
+    numeric = raw_data.select_dtypes(include=[np.number]).columns.tolist()
+    return [col for col in numeric if col not in exclude_cols]
 
 def filtered_cols(raw_data: pd.DataFrame, numeric_cols: List[str]) -> pd.DataFrame:
     """Drop columns based on specific suffixes to reduce noise."""
@@ -45,7 +44,8 @@ def scaled_data(cleaned_data: pd.DataFrame, numeric_cols: List[str]) -> Tuple[pd
     current_numeric = [c for c in numeric_cols if c in df.columns]
     
     scaler = StandardScaler()
-    df[current_numeric] = scaler.fit_transform(df[current_numeric])
+    if current_numeric:
+        df[current_numeric] = scaler.fit_transform(df[current_numeric])
     
     # Drop zero variance columns after scaling
     zero_var = [col for col in current_numeric if df[col].var() == 0]

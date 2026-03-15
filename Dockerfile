@@ -38,7 +38,7 @@ COPY ./plots ./plots
 COPY ./save_models ./save_models
 COPY ./save_scalers ./save_scalers
 
-EXPOSE 5000
+EXPOSE 5001
 ENV FLASK_APP=app.app
 ENV FLASK_RUN_HOST=0.0.0.0
 
