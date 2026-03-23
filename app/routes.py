@@ -155,6 +155,64 @@ def configure_routes(app):
             logger.error(f"Error in /predict: {str(e)}", exc_info=True)
             return jsonify({"error": f"Internal Server Error: {str(e)}"}), 500
 
+    @app.route('/predict/v2', methods=['POST'])
+    def predict_v2():
+        """
+        Flexible prediction endpoint - accepts answers list from Go backend and groups dynamically.
+        Payload: {"application_label": "...", "answers": [{"group":"fht","item":"1","version":"1","choiceNumber":2}, ...],
+                  "model_path": "...", "scaler_path": "...", "metadata_path": "..."}
+        """
+        try:
+            data = request.get_json()
+            if not data:
+                return jsonify({"error": "No JSON data provided"}), 400
+
+            application_label = data.get('application_label', '')
+            raw_answers = data.get('answers', [])
+            model_path = data.get('model_path', None)
+            scaler_path = data.get('scaler_path', None)
+            metadata_path = data.get('metadata_path', None)
+
+            logger.info(f"[v2] raw_answers count: {len(raw_answers)}")
+
+            # Dynamically group answers by group code — NO hardcoded group names
+            grouped: dict = {}
+            for ans in raw_answers:
+                g = ans.get('group', '')
+                if not g:
+                    continue
+                if g not in grouped:
+                    grouped[g] = []
+                grouped[g].append(ans)
+
+            # Sort each group by item code numerically
+            for g in grouped:
+                grouped[g].sort(key=lambda x: int(x.get('item', '0')) if str(x.get('item', '0')).isdigit() else 0)
+
+            # Build flat answers dict: {"fht": [1,2,3,...], "kmsi": [1,2,3,...]}
+            answers: dict = {g: [ans.get('choiceNumber', 0) for ans in items] for g, items in grouped.items()}
+            logger.info(f"[v2] grouped_answers: {answers}")
+
+            if not answers:
+                return jsonify({"error": "Answers dictionary is empty after grouping"}), 400
+
+            # Route to prediction function by application label
+            if application_label == "rdf50_v3.0_fk_v1.0":
+                results, status = fk_answers_v1(
+                    answers, metadata_path=metadata_path, model_path=model_path, scaler_path=scaler_path
+                )
+            else:
+                logger.error(f"[v2] Unsupported application_label: {application_label}")
+                return jsonify({"error": f"Unsupported application_label: {application_label}"}), 400
+
+            if status == 200:
+                logger.info(f"[v2] Prediction successful for: {application_label}")
+            return jsonify(results), status
+
+        except Exception as e:
+            logger.error(f"Error in /predict/v2: {str(e)}", exc_info=True)
+            return jsonify({"error": f"Internal Server Error: {str(e)}"}), 500
+
     @app.route('/train/lucis', methods=['POST'])
     def lucis():
         try:
